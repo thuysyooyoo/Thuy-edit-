@@ -29,6 +29,7 @@ export default function OpusTimeline({
   brolls = [],
   soundFxMarkers = [],
   textLayers = [],
+  skipIntervals = [],
   onSplitAtPlayhead,
   onDeleteSelectedLayer,
   onAddMediaTrack,
@@ -93,28 +94,27 @@ export default function OpusTimeline({
 
   const clipStart = clip?.start_time || 0;
   const clipEnd = clip?.end_time || 60;
-  const clipDuration = clip?.duration || Math.max(1, clipEnd - clipStart);
+  const rawClipDuration = clip?.duration || Math.max(1, clipEnd - clipStart);
+
+  // Tính tổng thời lượng các đoạn đã bị cắt bỏ (từ thừa, khoảng lặng)
+  const totalDeletedSecs = (skipIntervals || []).reduce((sum, s) => sum + (s.end - s.start), 0);
+  const effectiveClipDuration = Math.max(1.0, rawClipDuration - totalDeletedSecs);
+  const clipDuration = rawClipDuration;
 
   // Default scenes list if not yet split
   const scenes = clip?.scenes && clip.scenes.length > 0 ? clip.scenes : [
     { id: `${clip?.id || 'clip'}_sc0`, title: clip?.title || 'Phân cảnh chính', start_time: clipStart, end_time: clipEnd, transition: null }
   ];
 
-  // Tính toán thời lượng phát thực tế qua các phân cảnh còn lại
+  // Tính toán thời lượng phát thực tế sau khi trừ đi các khoảng đã bị cắt
   const playedDuration = (() => {
-    if (!clip?.scenes || clip.scenes.length <= 1) {
-      return Math.max(0, Math.min(clipDuration, currentTime - clipStart));
-    }
-    let elapsed = 0;
-    for (const sc of clip.scenes) {
-      if (currentTime >= sc.end_time) {
-        elapsed += (sc.end_time - sc.start_time);
-      } else if (currentTime >= sc.start_time) {
-        elapsed += (currentTime - sc.start_time);
-        break;
-      }
-    }
-    return Math.max(0, Math.min(clipDuration, elapsed));
+    const rawElapsed = Math.max(0, Math.min(rawClipDuration, currentTime - clipStart));
+    const deletedBefore = (skipIntervals || [])
+      .filter(s => s.end <= currentTime)
+      .reduce((sum, s) => sum + (s.end - s.start), 0);
+    const activeSkip = (skipIntervals || []).find(s => currentTime >= s.start && currentTime < s.end);
+    const inSkip = activeSkip ? (currentTime - activeSkip.start) : 0;
+    return Math.max(0, Math.min(effectiveClipDuration, rawElapsed - deletedBefore - inSkip));
   })();
 
   // Global mouse handlers for Drag and Drop on Sound FX & Title Timeline Markers
@@ -337,8 +337,15 @@ export default function OpusTimeline({
             <SkipForward className="w-4 h-4" />
           </button>
 
-          <span className="font-mono text-xs font-bold text-white tracking-wide ml-1">
-            {formatTime(playedDuration)} <span className="text-slate-500 font-normal">/ {formatTime(clipDuration)}</span>
+          <span className="font-mono text-xs font-bold text-white tracking-wide ml-1 flex items-center gap-1.5">
+            <span>{formatTime(playedDuration)}</span>
+            <span className="text-slate-500 font-normal">/</span>
+            <span className="text-emerald-300">{formatTime(effectiveClipDuration)}</span>
+            {totalDeletedSecs > 0.5 && (
+              <span className="px-1.5 py-0.2 rounded bg-rose-950/80 border border-rose-600/50 text-[9px] font-mono text-rose-300 font-bold" title={`Đã cắt sạch ${totalDeletedSecs.toFixed(1)}s đoạn thừa khỏi video`}>
+                ✂ -{totalDeletedSecs.toFixed(1)}s
+              </span>
+            )}
           </span>
         </div>
 

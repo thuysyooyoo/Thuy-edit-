@@ -1433,6 +1433,7 @@ export default function App() {
             brolls={brolls}
             soundFxMarkers={soundFxMarkers}
             textLayers={textLayers}
+            skipIntervals={skipIntervals}
             onSplitAtPlayhead={handleSplitAtPlayhead}
             onDeleteSelectedLayer={handleDeleteSelectedLayer}
             onAddMediaTrack={() => setIsBrollPickerOpen(true)}

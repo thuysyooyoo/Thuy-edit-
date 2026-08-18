@@ -95,6 +95,72 @@ def prepare_broll_media(media_src: str, temp_dir: Path, idx: int, start_time: fl
         print(f"Warning: Failed to prepare B-Roll media {media_src}: {e}")
     return None
 
+def compute_kept_intervals(
+    start_time: float,
+    end_time: float,
+    words: List[Dict],
+    excluded_word_indices: Optional[List[int]] = None
+) -> List[tuple]:
+    """
+    Tính toán danh sách các khoảng thời gian được giữ lại (kept intervals) sau khi cắt bỏ các từ thừa.
+    """
+    if not excluded_word_indices or not words:
+        return [(start_time, end_time)]
+
+    clip_words = [w for w in words if w.get("start", 0) >= start_time - 0.2 and w.get("end", 0) <= end_time + 0.5]
+    if not clip_words:
+        return [(start_time, end_time)]
+
+    excluded_set = set(excluded_word_indices)
+    skip_intervals = []
+    excluded_list = sorted([idx for idx in excluded_set if 0 <= idx < len(clip_words)])
+    
+    if excluded_list:
+        chunk_start = excluded_list[0]
+        chunk_end = excluded_list[0]
+        
+        for i in range(1, len(excluded_list)):
+            if excluded_list[i] == chunk_end + 1:
+                chunk_end = excluded_list[i]
+            else:
+                s_time = clip_words[chunk_start]["start"]
+                next_idx = chunk_end + 1
+                e_time = clip_words[next_idx]["start"] if next_idx < len(clip_words) else clip_words[chunk_end]["end"] + 0.2
+                skip_intervals.append({"start": s_time, "end": e_time})
+                chunk_start = excluded_list[i]
+                chunk_end = excluded_list[i]
+                
+        s_time = clip_words[chunk_start]["start"]
+        next_idx = chunk_end + 1
+        e_time = clip_words[next_idx]["start"] if next_idx < len(clip_words) else clip_words[chunk_end]["end"] + 0.2
+        skip_intervals.append({"start": s_time, "end": e_time})
+
+    # Xây dựng các khoảng giữ lại (kept intervals)
+    kept = []
+    curr = start_time
+    for sk in skip_intervals:
+        sk_start = max(start_time, min(end_time, sk["start"]))
+        sk_end = max(start_time, min(end_time, sk["end"]))
+        if sk_start > curr + 0.08:
+            kept.append((curr, sk_start))
+        curr = max(curr, sk_end)
+        
+    if curr < end_time - 0.08:
+        kept.append((curr, end_time))
+        
+    return kept if kept else [(start_time, end_time)]
+
+def map_time_to_cut_timeline(orig_time: float, kept_intervals: List[tuple]) -> float:
+    """Ánh xạ thời gian gốc sang mốc thời gian của video đã cắt nối."""
+    cumulative = 0.0
+    for s_i, e_i in kept_intervals:
+        if orig_time < s_i:
+            return cumulative
+        elif s_i <= orig_time <= e_i:
+            return cumulative + (orig_time - s_i)
+        cumulative += (e_i - s_i)
+    return cumulative
+
 def render_hd_vertical_clip(
     input_path: str,
     output_path: str,
@@ -121,6 +187,7 @@ def render_hd_vertical_clip(
 ) -> str:
     """
     🔥 PHIÊN 3 FLAGSHIP WYSIWYG HD 9:16 RENDER ENGINE (DOM Snapshot + B-Roll + Subtitle Overlay):
+    - Cắt bỏ vật lý 100% các đoạn từ thừa, khoảng lặng đã gạch bỏ trên transcript (Text-Based Video Cut).
     - Nhận diện khuôn mặt người nói & Auto-Crop 9:16 (Face Tracker).
     - Ghép chuẩn xác B-Rolls theo đúng phân đoạn thời gian và tỷ lệ hiển thị.
     - Đè ảnh Snapshot Đồ họa Thẻ Tiêu đề Hook (khớp 100% màu vàng gradient, bo góc, bóng đổ, font).
@@ -131,11 +198,14 @@ def render_hd_vertical_clip(
     - Xuất video Full HD chuẩn 1080x1920 siêu tốc và sắc nét tuyệt đối.
     """
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    duration = max(1.0, end_time - start_time)
     temp_dir = BASE_DIR / "temp"
     temp_dir.mkdir(exist_ok=True)
 
-    # 1. Face Tracker 9:16 Crop
+    # 1. Tính toán các khoảng cắt vật lý (Kept Intervals)
+    kept_intervals = compute_kept_intervals(start_time, end_time, words, excluded_word_indices)
+    total_duration = max(1.0, sum(e - s for s, e in kept_intervals))
+
+    # 2. Face Tracker 9:16 Crop
     try:
         tracker = FaceTracker()
         crop_data = tracker.analyze_video_crop(input_path, start_time, end_time)
@@ -144,7 +214,7 @@ def render_hd_vertical_clip(
         print(f"FaceTracker warning: {e}. Fallback to center crop.")
         crop_filter = "crop=ih*9/16:ih:(iw-ih*9/16)/2:0"
 
-    # 2. Xử lý ảnh Snapshot Đồ họa (Title Card & Brand Logo)
+    # 3. Xử lý ảnh Snapshot Đồ họa (Title Card & Brand Logo)
     title_config = title_config or {}
     brand_config = brand_config or {}
 
@@ -164,18 +234,23 @@ def render_hd_vertical_clip(
     elif brand_config.get("showLogo") and brand_config.get("logoUrl") and os.path.exists(str(brand_config.get("logoUrl"))):
         brand_logo_path = str(brand_config.get("logoUrl"))
 
-    # 3. Chuẩn bị danh sách B-Rolls
+    # 4. Chuẩn bị danh sách B-Rolls với mốc thời gian ánh xạ sau khi cắt
     broll_inputs = []
     for b_idx, broll in enumerate(brolls or []):
         media_src = broll.get("fileUrl") or broll.get("imageUrl") or broll.get("videoUrl")
         local_path = prepare_broll_media(media_src, temp_dir, b_idx, start_time)
         if local_path and os.path.exists(local_path):
             is_vid = broll.get("mediaType") == "video" or local_path.lower().endswith(('.mp4', '.mov', '.webm', '.mkv'))
-            b_start = float(broll.get("start", 0.0))
-            b_end = float(broll.get("end", b_start + float(broll.get("duration", 4.0))))
-            # Chuyển về mốc thời gian tương đối của clip xuất
-            b_rel_start = max(0.0, b_start - start_time) if b_start >= start_time else max(0.0, b_start)
-            b_rel_end = max(b_rel_start + 0.5, b_end - start_time) if b_end >= start_time else max(b_rel_start + 0.5, b_end)
+            raw_b_start = float(broll.get("start", 0.0))
+            raw_b_end = float(broll.get("end", raw_b_start + float(broll.get("duration", 4.0))))
+            
+            # Ánh xạ sang mốc thời gian video sau khi cắt
+            b_abs_start = raw_b_start if raw_b_start >= start_time else (start_time + raw_b_start)
+            b_abs_end = raw_b_end if raw_b_end >= start_time else (start_time + raw_b_end)
+            
+            b_rel_start = map_time_to_cut_timeline(b_abs_start, kept_intervals)
+            b_rel_end = map_time_to_cut_timeline(b_abs_end, kept_intervals)
+            b_rel_end = max(b_rel_start + 0.5, b_rel_end)
             b_dur = b_rel_end - b_rel_start
             b_style = broll.get("style", "split_30_70_top")
 
@@ -189,12 +264,28 @@ def render_hd_vertical_clip(
                 "trim_start": float(broll.get("videoTrimStart", 0.0))
             })
 
-    # 4. Generate ASS Subtitles & Text Layers
+    # 5. Ánh xạ danh sách từ thoại sang video đã cắt
+    clip_words = [w for w in words if w.get("start", 0) >= start_time - 0.2 and w.get("end", 0) <= end_time + 0.5]
+    excluded_set = set(excluded_word_indices or [])
+    mapped_words = []
+    for idx, w in enumerate(clip_words):
+        if idx not in excluded_set:
+            new_s = map_time_to_cut_timeline(w["start"], kept_intervals)
+            new_e = map_time_to_cut_timeline(w["end"], kept_intervals)
+            if new_e > new_s:
+                mapped_words.append({
+                    "word": w["word"],
+                    "start": new_s,
+                    "end": new_e,
+                    "score": w.get("score", 1.0)
+                })
+
+    # 6. Generate ASS Subtitles & Text Layers
     ass_path = str(temp_dir / f"subs_{int(start_time)}.ass")
     generate_ass_subtitles(
-        words=words,
-        start_time=start_time,
-        end_time=end_time,
+        words=mapped_words,
+        start_time=0.0,
+        end_time=total_duration,
         output_ass_path=ass_path,
         hook_title=hook_title,
         title_config=title_config,
@@ -203,7 +294,7 @@ def render_hd_vertical_clip(
         font_style=font_style,
         brand_config=brand_config,
         text_layers=text_layers,
-        excluded_word_indices=excluded_word_indices,
+        excluded_word_indices=[],
         has_title_card_image=bool(title_card_path),
         has_brand_logo_image=bool(brand_logo_path)
     )
@@ -211,11 +302,11 @@ def render_hd_vertical_clip(
     # Escape path for FFmpeg filter on Windows
     escaped_ass_path = ass_path.replace("\\", "/").replace(":", "\\:")
 
-    # 5. Sound FX & BGM Audio Mixing
-    keywords_times = [w["start"] for w in words if start_time <= w["start"] <= end_time and len(w["word"]) >= 5]
+    # 7. Sound FX & BGM Audio Mixing
+    keywords_times = [w["start"] for w in mapped_words if len(w["word"]) >= 5]
     audio_fx_data = build_sound_fx_audio_filter(
-        clip_start_time=start_time,
-        clip_end_time=end_time,
+        clip_start_time=0.0,
+        clip_end_time=total_duration,
         sound_fx_markers=sound_fx_markers or [],
         auto_whoosh=auto_whoosh,
         auto_ding=auto_ding,
@@ -224,12 +315,12 @@ def render_hd_vertical_clip(
         bgm_volume=bgm_volume
     )
 
-    # 6. Assemble FFmpeg Inputs & FilterGraph
+    # 8. Assemble FFmpeg Inputs & FilterGraph
     cmd = [
         FFMPEG_PATH, "-y",
         "-ss", str(start_time),
         "-i", input_path,
-        "-t", str(duration)
+        "-t", str(end_time - start_time)
     ]
 
     current_input_idx = 1
@@ -262,9 +353,23 @@ def render_hd_vertical_clip(
     # Build Complex Filter for Video and Audio
     filter_parts = []
     
-    # Video Base Crop & Scale
-    filter_parts.append(f"[0:v]{crop_filter},scale=1080:1920:flags=bicubic[v_base]")
-    curr_v = "v_base"
+    if len(kept_intervals) > 1:
+        # Cắt vật lý từng phân đoạn được giữ lại
+        for i, (s_i, e_i) in enumerate(kept_intervals):
+            rel_s = round(s_i - start_time, 3)
+            rel_e = round(e_i - start_time, 3)
+            filter_parts.append(f"[0:v]trim=start={rel_s}:end={rel_e},setpts=PTS-STARTPTS[v_seg_{i}]")
+            filter_parts.append(f"[0:a]atrim=start={rel_s}:end={rel_e},asetpts=PTS-STARTPTS[a_seg_{i}]")
+        
+        concat_inputs = "".join(f"[v_seg_{i}][a_seg_{i}]" for i in range(len(kept_intervals)))
+        filter_parts.append(f"{concat_inputs}concat=n={len(kept_intervals)}:v=1:a=1[v_cut][a_cut]")
+        filter_parts.append(f"[v_cut]{crop_filter},scale=1080:1920:flags=bicubic[v_base]")
+        curr_v = "v_base"
+        curr_a_base = "[a_cut]"
+    else:
+        filter_parts.append(f"[0:v]{crop_filter},scale=1080:1920:flags=bicubic[v_base]")
+        curr_v = "v_base"
+        curr_a_base = "[0:a]"
 
     # Overlay B-Rolls
     for b_item in broll_inputs:
@@ -311,9 +416,13 @@ def render_hd_vertical_clip(
         t_pos = title_config.get("pos", {"x": 50, "y": 10})
         tx = max(0, min(1080, int((t_pos.get("x", 50) / 100.0) * 1080)))
         ty = max(0, min(1920, int((t_pos.get("y", 10) / 100.0) * 1920)))
-        t_start = float(title_config.get("startTime", 0.0))
-        t_dur = float(title_config.get("duration", 6.0))
-        t_end = t_start + t_dur
+        raw_t_start = float(title_config.get("startTime", 0.0))
+        raw_t_dur = float(title_config.get("duration", 6.0))
+        t_abs_start = raw_t_start if raw_t_start >= start_time else (start_time + raw_t_start)
+        t_abs_end = t_abs_start + raw_t_dur
+        t_start = map_time_to_cut_timeline(t_abs_start, kept_intervals)
+        t_end = map_time_to_cut_timeline(t_abs_end, kept_intervals)
+        t_end = max(t_start + 1.0, t_end)
         filter_parts.append(f"[{curr_v}][{title_input_idx}:v]overlay=x={tx}-w/2:y={ty}-h/2:enable='between(t,{t_start},{t_end})'[v_title]")
         curr_v = "v_title"
 
@@ -322,7 +431,7 @@ def render_hd_vertical_clip(
 
     # Audio Mix
     if fx_files:
-        filter_parts.append("[0:a]volume=1.0[main_a]")
+        filter_parts.append(f"{curr_a_base}volume=1.0[main_a]")
         amix_inputs = "[main_a]"
         for idx, fx in enumerate(fx_files):
             delay = fx["time_ms"]
@@ -334,7 +443,7 @@ def render_hd_vertical_clip(
         filter_parts.append(f"{amix_inputs}amix=inputs={len(fx_files)+1}:duration=first:dropout_transition=1[out_a]")
         curr_a = "[out_a]"
     else:
-        filter_parts.append("[0:a]volume=1.0[out_a]")
+        filter_parts.append(f"{curr_a_base}volume=1.0[out_a]")
         curr_a = "[out_a]"
 
     full_filter_complex = ";".join(filter_parts)
@@ -351,7 +460,7 @@ def render_hd_vertical_clip(
         "-c:a", "aac",
         "-b:a", "192k",
         "-pix_fmt", "yuv420p",
-        "-t", str(duration),
+        "-t", str(total_duration),
         output_path
     ])
 
