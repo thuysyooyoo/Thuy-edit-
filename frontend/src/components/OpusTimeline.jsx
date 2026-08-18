@@ -72,12 +72,29 @@ export default function OpusTimeline({
 
   const clipStart = clip?.start_time || 0;
   const clipEnd = clip?.end_time || 60;
-  const clipDuration = Math.max(1, clipEnd - clipStart);
+  const clipDuration = clip?.duration || Math.max(1, clipEnd - clipStart);
 
   // Default scenes list if not yet split
   const scenes = clip?.scenes && clip.scenes.length > 0 ? clip.scenes : [
     { id: `${clip?.id || 'clip'}_sc0`, title: clip?.title || 'Phân cảnh chính', start_time: clipStart, end_time: clipEnd, transition: null }
   ];
+
+  // Tính toán thời lượng phát thực tế qua các phân cảnh còn lại
+  const playedDuration = (() => {
+    if (!clip?.scenes || clip.scenes.length <= 1) {
+      return Math.max(0, Math.min(clipDuration, currentTime - clipStart));
+    }
+    let elapsed = 0;
+    for (const sc of clip.scenes) {
+      if (currentTime >= sc.end_time) {
+        elapsed += (sc.end_time - sc.start_time);
+      } else if (currentTime >= sc.start_time) {
+        elapsed += (currentTime - sc.start_time);
+        break;
+      }
+    }
+    return Math.max(0, Math.min(clipDuration, elapsed));
+  })();
 
   // Global mouse handlers for Drag and Drop on Sound FX Timeline Markers
   useEffect(() => {
@@ -269,7 +286,7 @@ export default function OpusTimeline({
           </button>
 
           <span className="font-mono text-xs font-bold text-white tracking-wide ml-1">
-            {formatTime(currentTime - clipStart)} <span className="text-slate-500 font-normal">/ {formatTime(clipDuration)}</span>
+            {formatTime(playedDuration)} <span className="text-slate-500 font-normal">/ {formatTime(clipDuration)}</span>
           </span>
         </div>
 

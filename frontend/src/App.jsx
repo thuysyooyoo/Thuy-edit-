@@ -255,6 +255,20 @@ export default function App() {
       }
     });
 
+    // Khoảng thời gian bị khuyết giữa các phân cảnh (nếu xóa phân cảnh ở giữa)
+    if (activeClip?.scenes && activeClip.scenes.length > 1) {
+      for (let i = 1; i < activeClip.scenes.length; i++) {
+        const prevScene = activeClip.scenes[i - 1];
+        const currScene = activeClip.scenes[i];
+        if (currScene.start_time > prevScene.end_time + 0.05) {
+          intervals.push({
+            start: prevScene.end_time,
+            end: currScene.start_time
+          });
+        }
+      }
+    }
+
     // Merge các khoảng nhảy gối nhau
     intervals.sort((a, b) => a.start - b.start);
     const merged = [];
@@ -711,11 +725,52 @@ export default function App() {
       return;
     }
 
+    const deletedScene = currentScenes.find(s => s.id === sceneId);
     const nextScenes = currentScenes.filter(s => s.id !== sceneId);
-    setActiveClip({
-      ...activeClip,
-      scenes: nextScenes
-    });
+
+    if (deletedScene && nextScenes.length > 0) {
+      // 1. Tự động gạch bỏ/loại bỏ toàn bộ từ trong transcript thuộc phân cảnh bị xóa
+      const nextExcluded = new Set(excludedWordIndices);
+      currentClipWords.forEach((w, idx) => {
+        if (w.start >= deletedScene.start_time - 0.1 && w.end <= deletedScene.end_time + 0.1) {
+          nextExcluded.add(idx);
+        }
+      });
+      setExcludedWordIndices(nextExcluded);
+
+      // 2. Tính toán lại mốc bắt đầu, kết thúc và trừ thời lượng thực tế của clip
+      const newStart = nextScenes[0].start_time;
+      const newEnd = nextScenes[nextScenes.length - 1].end_time;
+      const netDuration = nextScenes.reduce((sum, s) => sum + Math.max(0, s.end_time - s.start_time), 0);
+      const roundedDur = Math.round(netDuration * 100) / 100;
+
+      const updatedClip = {
+        ...activeClip,
+        start_time: newStart,
+        end_time: newEnd,
+        duration: roundedDur,
+        scenes: nextScenes
+      };
+
+      setActiveClip(updatedClip);
+
+      // Cập nhật cả danh sách viral_clips để đồng bộ Clip Cards
+      if (data?.viral_clips) {
+        setData(prev => ({
+          ...prev,
+          viral_clips: prev.viral_clips.map(c => c.id === activeClip.id ? updatedClip : c)
+        }));
+      }
+
+      // 3. Nếu con trỏ phát (currentTime) đang nằm trong đoạn vừa xóa, tự động nhảy về đầu đoạn còn lại
+      if (currentTime >= deletedScene.start_time && currentTime <= deletedScene.end_time) {
+        const nextTargetTime = nextScenes.find(s => s.start_time >= deletedScene.end_time)?.start_time || newStart;
+        setCurrentTime(nextTargetTime);
+        if (videoRef.current) {
+          videoRef.current.currentTime = nextTargetTime;
+        }
+      }
+    }
   };
 
   const handleUpdateSceneTransition = (sceneId, transitionType) => {
