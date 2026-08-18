@@ -12,7 +12,8 @@ import {
   Scissors, 
   Play, 
   Pause,
-  RotateCcw
+  Trash2,
+  AlertCircle
 } from 'lucide-react';
 
 const INITIAL_STOCK_BROLLS = [
@@ -48,7 +49,7 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
   const [customEnd, setCustomEnd] = useState(Math.round(phraseEnd * 10) / 10 || 4);
 
   // B-Roll Layout Style
-  const [brollStyle, setBrollStyle] = useState('full_cover');
+  const [brollStyle, setBrollStyle] = useState('split_50_50_top');
 
   const fileInputRef = useRef(null);
   const trimVideoRef = useRef(null);
@@ -93,6 +94,15 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
     setStockList(prev => [...newUploaded, ...prev]);
     setSelectedItem(newUploaded[0]);
     setActiveTab('stock');
+  };
+
+  const handleDeleteItem = (e, itemId) => {
+    e.stopPropagation();
+    const updated = stockList.filter(item => item.id !== itemId);
+    setStockList(updated);
+    if (selectedItem?.id === itemId) {
+      setSelectedItem(updated.length > 0 ? updated[0] : null);
+    }
   };
 
   const handleLoadedMetadata = (e) => {
@@ -150,13 +160,13 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
   };
 
   const styleOptions = [
+    { id: 'split_50_50_top', name: 'Chia Đôi 50:50 (B-Roll Trên / Video Dưới)', desc: 'Hòa trộn chuyển sắc mềm mại ở đường tiếp giáp' },
+    { id: 'split_50_50_bottom', name: 'Chia Đôi 50:50 (Video Trên / B-Roll Dưới)', desc: 'Hòa trộn chuyển sắc mềm mại ở đường tiếp giáp' },
+    { id: 'split_30_70_top', name: 'Tỉ Lệ 30:70 (B-Roll 30% Trên / Video 70% Dưới)', desc: 'B-Roll 30% ở đỉnh với viền chuyển tiếp êm' },
+    { id: 'split_30_70_bottom', name: 'Tỉ Lệ 30:70 (Video 70% Trên / B-Roll 30% Dưới)', desc: 'B-Roll 30% ở đáy với viền chuyển tiếp êm' },
     { id: 'full_cover', name: 'Chuyển Cảnh Toàn Màn Hình (100% Full Cut)', desc: 'B-Roll phủ kín toàn màn hình, phụ đề vẫn hiển thị phía trên' },
-    { id: 'split_50_50_top', name: 'Chia Đôi 50:50 (B-Roll Trên / Video Gốc Dưới)', desc: 'B-Roll nửa trên, nhân vật nói nửa dưới' },
-    { id: 'split_50_50_bottom', name: 'Chia Đôi 50:50 (Video Gốc Trên / B-Roll Dưới)', desc: 'Nhân vật nói nửa trên, B-Roll nửa dưới' },
-    { id: 'split_30_70_top', name: 'Tỉ Lệ 30:70 (B-Roll 30% Trên / Video 70% Dưới)', desc: 'B-Roll chiếm 30% đỉnh, video gốc chiếm 70%' },
-    { id: 'split_30_70_bottom', name: 'Tỉ Lệ 30:70 (Video 70% Trên / B-Roll 30% Dưới)', desc: 'Video gốc chiếm 70%, B-Roll chiếm 30% đáy' },
-    { id: 'background', name: 'Làm Nền Phía Sau Nhân Vật (Background Cutout)', desc: 'B-Roll làm nền phía sau, video gốc ở tiền cảnh' },
-    { id: 'pip', name: 'Khung Nổi Picture-in-Picture (Góc Trên Phải)', desc: 'Khung video B-Roll nhỏ nổi bật ở góc' },
+    { id: 'background', name: 'Làm Nền Phía Sau Nhân Vật (Tách Người AI)', desc: 'Bóc tách pixel cơ thể người nói và đặt B-Roll làm nền' },
+    { id: 'pip', name: 'Khung Nổi Picture-in-Picture (Góc Trên Phải)', desc: 'Khung video B-Roll nhỏ bo góc đổ bóng nổi bật' },
   ];
 
   return (
@@ -169,9 +179,9 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
               <Film className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white">Chèn & Cắt Đoạn B-Roll Minh Họa</h3>
+              <h3 className="text-sm font-bold text-white">Chèn, Tải Lên & Quản Lý B-Roll</h3>
               <p className="text-[11px] text-slate-400">
-                Hỗ trợ tải lên đa định dạng (MP4, MOV, WEBM, AVI, Ảnh) và tùy chọn cắt đoạn video chính xác
+                Tải lên (MP4, MOV, Ảnh), xóa tư liệu tùy chọn và hòa trộn màu tiếp giáp mượt mà
               </p>
             </div>
           </div>
@@ -192,7 +202,7 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
                     activeTab === 'stock' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  Thư Viện B-Roll ({stockList.length})
+                  Thư Viện ({stockList.length})
                 </button>
                 <button
                   onClick={() => fileInputRef.current?.click()}
@@ -225,46 +235,68 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
               />
             </div>
 
-            {/* Stock / Upload Grid */}
-            <div className="grid grid-cols-2 gap-2.5">
-              {filteredStock.map((item) => {
-                const isSelected = selectedItem?.id === item.id;
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => setSelectedItem(item)}
-                    className={`p-3 rounded-2xl border cursor-pointer flex flex-col justify-between transition-all group ${
-                      isSelected
-                        ? 'bg-amber-950/40 border-amber-500 shadow-md ring-2 ring-amber-500'
-                        : 'bg-[#161824] hover:bg-[#202336] border-[#25283a]'
-                    }`}
-                  >
-                    <div className={`h-20 bg-gradient-to-br ${item.bg || 'from-slate-900 to-black'} rounded-xl flex items-center justify-center text-2xl mb-2 overflow-hidden`}>
-                      {item.fileUrl ? (
-                        item.mediaType === 'video' ? (
-                          <video src={item.fileUrl} className="w-full h-full object-cover" muted />
+            {/* Stock / Upload Grid with Delete Button */}
+            {filteredStock.length === 0 ? (
+              <div className="py-12 text-center text-slate-500 text-xs">
+                Không tìm thấy tư liệu nào. Hãy bấm <strong>+ Tải Lên</strong> để thêm video/ảnh mới.
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2.5">
+                {filteredStock.map((item) => {
+                  const isSelected = selectedItem?.id === item.id;
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => setSelectedItem(item)}
+                      className={`relative p-3 rounded-2xl border cursor-pointer flex flex-col justify-between transition-all group ${
+                        isSelected
+                          ? 'bg-amber-950/40 border-amber-500 shadow-md ring-2 ring-amber-500'
+                          : 'bg-[#161824] hover:bg-[#202336] border-[#25283a]'
+                      }`}
+                    >
+                      {/* Delete Button on Card */}
+                      <button
+                        onClick={(e) => handleDeleteItem(e, item.id)}
+                        title="Xóa mục B-Roll này khỏi thư viện"
+                        className="absolute top-2 right-2 w-6 h-6 rounded-lg bg-black/70 hover:bg-rose-600 border border-white/20 text-slate-300 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-20"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+
+                      <div className={`h-20 bg-gradient-to-br ${item.bg || 'from-slate-900 to-black'} rounded-xl flex items-center justify-center text-2xl mb-2 overflow-hidden relative`}>
+                        {item.fileUrl ? (
+                          item.mediaType === 'video' ? (
+                            <video src={item.fileUrl} className="w-full h-full object-cover" muted />
+                          ) : (
+                            <img src={item.fileUrl} alt={item.title} className="w-full h-full object-cover" />
+                          )
                         ) : (
-                          <img src={item.fileUrl} alt={item.title} className="w-full h-full object-cover" />
-                        )
-                      ) : (
-                        <span>{item.thumb}</span>
-                      )}
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-white line-clamp-1 group-hover:text-amber-300">
-                        {item.title}
-                      </h4>
-                      <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
-                        <span>{item.category}</span>
-                        <span className="font-mono text-amber-400">
-                          {item.mediaType === 'video' ? `${item.duration}s (Video)` : 'Ảnh'}
-                        </span>
+                          <span>{item.thumb}</span>
+                        )}
+
+                        {item.isCustom && (
+                          <span className="absolute bottom-1 left-1 bg-indigo-600/90 text-white font-bold text-[8px] px-1.5 py-0.2 rounded font-mono">
+                            Đã Tải Lên
+                          </span>
+                        )}
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-bold text-white line-clamp-1 group-hover:text-amber-300">
+                          {item.title}
+                        </h4>
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
+                          <span>{item.category}</span>
+                          <span className="font-mono text-amber-400 font-semibold">
+                            {item.mediaType === 'video' ? `${item.duration}s` : 'Ảnh'}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Right: Video Trimmer & Placement Setup */}
@@ -278,7 +310,7 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
                     <span>Cắt Đoạn Video Gốc (In/Out Trimmer)</span>
                   </div>
                   <span className="font-mono text-[10px] text-amber-300">
-                    Độ dài đoạn lấy: {Math.max(0, trimEnd - trimStart).toFixed(1)}s
+                    Đoạn lấy: {Math.max(0, trimEnd - trimStart).toFixed(1)}s
                   </span>
                 </div>
 
@@ -310,8 +342,8 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
                 <div className="space-y-2 pt-1">
                   <div>
                     <div className="flex justify-between text-[11px] text-slate-300 font-semibold mb-1">
-                      <span>Điểm bắt đầu (In Point): <strong className="text-amber-400 font-mono">{trimStart.toFixed(1)}s</strong></span>
-                      <span>Điểm kết thúc (Out Point): <strong className="text-amber-400 font-mono">{trimEnd.toFixed(1)}s</strong></span>
+                      <span>Bắt đầu (In): <strong className="text-amber-400 font-mono">{trimStart.toFixed(1)}s</strong></span>
+                      <span>Kết thúc (Out): <strong className="text-amber-400 font-mono">{trimEnd.toFixed(1)}s</strong></span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
@@ -406,11 +438,14 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
               </div>
             </div>
 
-            {/* 3. Display Style Selection */}
+            {/* 3. Display Style Selection with Smooth Boundary Blend Notice */}
             <div className="p-3 bg-[#161824] border border-[#262a3d] rounded-2xl space-y-2">
-              <div className="font-bold text-white flex items-center gap-1.5 pb-1 border-b border-[#202334]">
-                <Layout className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Phong Cách Hiển Thị B-Roll</span>
+              <div className="font-bold text-white flex items-center justify-between pb-1 border-b border-[#202334]">
+                <div className="flex items-center gap-1.5">
+                  <Layout className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Phong Cách Hiển Thị B-Roll</span>
+                </div>
+                <span className="text-[10px] text-emerald-400 font-mono font-semibold">Hòa trộn mềm</span>
               </div>
 
               <div className="space-y-1.5">
@@ -439,11 +474,17 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
         {/* Footer Actions */}
         <div className="p-4 border-t border-[#202334] bg-[#0c0d14] flex items-center justify-between">
           <div className="text-xs text-slate-400">
-            Đã chọn: <strong className="text-white">{selectedItem?.title || 'Chưa chọn'}</strong>
-            {selectedItem?.mediaType === 'video' && (
-              <span className="text-amber-400 font-mono ml-2 font-bold">
-                (Đoạn cắt: {trimStart.toFixed(1)}s - {trimEnd.toFixed(1)}s)
-              </span>
+            {selectedItem ? (
+              <>
+                Đã chọn: <strong className="text-white">{selectedItem.title}</strong>
+                {selectedItem.mediaType === 'video' && (
+                  <span className="text-amber-400 font-mono ml-2 font-bold">
+                    (Đoạn cắt: {trimStart.toFixed(1)}s - {trimEnd.toFixed(1)}s)
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="text-rose-400">Vui lòng chọn một mục B-Roll</span>
             )}
           </div>
 
@@ -455,8 +496,9 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
               Hủy
             </button>
             <button
+              disabled={!selectedItem}
               onClick={handleConfirmInsert}
-              className="px-6 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-xs shadow-lg shadow-amber-600/30 active:scale-95 transition-all"
+              className="px-6 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 disabled:opacity-40 text-white font-bold text-xs shadow-lg shadow-amber-600/30 active:scale-95 transition-all"
             >
               Chèn Đoạn B-Roll Đã Chọn
             </button>

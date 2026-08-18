@@ -314,11 +314,11 @@ export default function OpusCanvasPreview({
               : activeBroll?.style === 'split_50_50_top'
               ? 'inset-x-0 bottom-0 h-1/2 z-10'
               : activeBroll?.style === 'split_50_50_bottom'
-              ? 'inset-x-0 top-0 h-1/2 border-b-2 border-indigo-500 z-10'
+              ? 'inset-x-0 top-0 h-1/2 z-10'
               : activeBroll?.style === 'split_30_70_top'
               ? 'inset-x-0 bottom-0 h-[70%] z-10'
               : activeBroll?.style === 'split_30_70_bottom'
-              ? 'inset-x-0 top-0 h-[70%] border-b-2 border-indigo-500 z-10'
+              ? 'inset-x-0 top-0 h-[70%] z-10'
               : activeBroll?.style === 'background'
               ? 'inset-4 rounded-2xl border-2 border-white/60 shadow-2xl z-10'
               : videoLayout === 'split' && !activeBroll
@@ -348,10 +348,10 @@ export default function OpusCanvasPreview({
           <div 
             className={`absolute overflow-hidden transition-all duration-300 ${
               activeBroll.style === 'full_cover' ? 'inset-0 z-15' :
-              activeBroll.style === 'split_50_50_top' ? 'inset-x-0 top-0 h-1/2 border-b-2 border-amber-500 z-15' :
-              activeBroll.style === 'split_50_50_bottom' ? 'inset-x-0 bottom-0 h-1/2 border-t-2 border-amber-500 z-15' :
-              activeBroll.style === 'split_30_70_top' ? 'inset-x-0 top-0 h-[30%] border-b-2 border-amber-500 z-15' :
-              activeBroll.style === 'split_30_70_bottom' ? 'inset-x-0 bottom-0 h-[30%] border-t-2 border-amber-500 z-15' :
+              activeBroll.style === 'split_50_50_top' ? 'inset-x-0 top-0 h-1/2 z-15' :
+              activeBroll.style === 'split_50_50_bottom' ? 'inset-x-0 bottom-0 h-1/2 z-15' :
+              activeBroll.style === 'split_30_70_top' ? 'inset-x-0 top-0 h-[30%] z-15' :
+              activeBroll.style === 'split_30_70_bottom' ? 'inset-x-0 bottom-0 h-[30%] z-15' :
               activeBroll.style === 'background' ? 'inset-0 z-5 scale-105 filter brightness-90' :
               activeBroll.style === 'pip' ? 'top-16 right-3 w-28 h-20 rounded-xl border-2 border-amber-500 shadow-2xl z-20' :
               'inset-0 z-15'
@@ -364,6 +364,30 @@ export default function OpusCanvasPreview({
               <span>{activeBroll.style === 'background' ? 'Tách Người AI & Làm Nền: ' : 'B-Roll: '}</span>
               <span>{activeBroll.title}</span>
             </div>
+          </div>
+        )}
+
+        {/* ── 3. CINEMATIC GRADIENT FEATHERING BLEND SEAM (ĐOẠN TIẾP GIÁP CHUYỂN SẮC MỀM) ── */}
+        {activeBroll && (activeBroll.style === 'split_50_50_top' || activeBroll.style === 'split_50_50_bottom') && (
+          <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-16 pointer-events-none z-25 overflow-hidden flex items-center justify-center">
+            {/* Ambient Dark Gradient Feathering */}
+            <div className="w-full h-full bg-gradient-to-b from-transparent via-black/85 to-transparent backdrop-blur-[1.5px]" />
+            {/* Subtle soft glowing division accent line */}
+            <div className="absolute inset-x-6 top-1/2 -translate-y-1/2 h-[1.5px] bg-gradient-to-r from-transparent via-amber-400/40 to-transparent shadow-[0_0_15px_rgba(251,191,36,0.6)]" />
+          </div>
+        )}
+
+        {activeBroll && activeBroll.style === 'split_30_70_top' && (
+          <div className="absolute inset-x-0 top-[30%] -translate-y-1/2 h-16 pointer-events-none z-25 overflow-hidden flex items-center justify-center">
+            <div className="w-full h-full bg-gradient-to-b from-transparent via-black/85 to-transparent backdrop-blur-[1.5px]" />
+            <div className="absolute inset-x-6 top-1/2 -translate-y-1/2 h-[1.5px] bg-gradient-to-r from-transparent via-amber-400/40 to-transparent shadow-[0_0_15px_rgba(251,191,36,0.6)]" />
+          </div>
+        )}
+
+        {activeBroll && activeBroll.style === 'split_30_70_bottom' && (
+          <div className="absolute inset-x-0 top-[70%] -translate-y-1/2 h-16 pointer-events-none z-25 overflow-hidden flex items-center justify-center">
+            <div className="w-full h-full bg-gradient-to-b from-transparent via-black/85 to-transparent backdrop-blur-[1.5px]" />
+            <div className="absolute inset-x-6 top-1/2 -translate-y-1/2 h-[1.5px] bg-gradient-to-r from-transparent via-amber-400/40 to-transparent shadow-[0_0_15px_rgba(251,191,36,0.6)]" />
           </div>
         )}
 
