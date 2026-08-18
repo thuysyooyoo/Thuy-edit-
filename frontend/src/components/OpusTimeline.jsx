@@ -13,18 +13,8 @@ import {
   Plus, 
   X,
   Zap,
-  Sparkles,
-  ChevronDown
+  Sparkles
 } from 'lucide-react';
-
-const TRANSITION_PRESETS = [
-  { id: 'zoom_in', name: 'Zoom In Punch', desc: 'Phóng to thu hút thị giác' },
-  { id: 'flash_white', name: 'Flash White', desc: 'Chớp sáng chuyển cảnh' },
-  { id: 'glitch', name: 'Glitch Cyber', desc: 'Hiệu ứng nhiễu sóng số' },
-  { id: 'fade_black', name: 'Fade Black', desc: 'Mờ dần vào nền đen' },
-  { id: 'blur', name: 'Blur Dissolve', desc: 'Hòa tan làm mờ mềm mại' },
-  { id: 'none', name: 'Không chuyển cảnh', desc: 'Cắt thẳng liền mạch' },
-];
 
 export default function OpusTimeline({
   clip,
@@ -40,11 +30,11 @@ export default function OpusTimeline({
   onDeleteSelectedLayer,
   onAddMediaTrack,
   onOpenAudioTab,
+  onOpenTransitionsTab,
   onUpdateSoundFxTime,
   onDeleteSoundFx,
   onDeleteBroll,
-  onDeleteScene,
-  onUpdateSceneTransition
+  onDeleteScene
 }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [volume, setVolume] = useState(100);
@@ -56,20 +46,15 @@ export default function OpusTimeline({
   const [selectedSceneId, setSelectedSceneId] = useState(null);
   const [selectedMarkerId, setSelectedMarkerId] = useState(null);
   const [selectedBrollId, setSelectedBrollId] = useState(null);
-  const [activeTransitionPopoverId, setActiveTransitionPopoverId] = useState(null);
   const [draggingId, setDraggingId] = useState(null);
 
   const volumeRef = useRef(null);
   const containerTrackRef = useRef(null);
-  const transitionPopoverRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (volumeRef.current && !volumeRef.current.contains(event.target)) {
         setIsVolumeOpen(false);
-      }
-      if (transitionPopoverRef.current && !transitionPopoverRef.current.contains(event.target)) {
-        setActiveTransitionPopoverId(null);
       }
       if (event.target.closest('.sound-fx-marker') === null) {
         setSelectedMarkerId(null);
@@ -154,6 +139,16 @@ export default function OpusTimeline({
     } else if (onDeleteSelectedLayer) {
       onDeleteSelectedLayer();
     }
+  };
+
+  const getTransitionLabel = (type) => {
+    if (!type || type === 'none') return 'Chuyển Cảnh';
+    if (type === 'zoom_in') return 'Zoom In';
+    if (type === 'flash_white') return 'Flash White';
+    if (type === 'glitch') return 'Glitch';
+    if (type === 'fade_black') return 'Fade Black';
+    if (type === 'blur') return 'Blur';
+    return type;
   };
 
   return (
@@ -463,7 +458,7 @@ export default function OpusTimeline({
                       )}
                     </div>
 
-                    {/* Transition Badge between Scene [idx] and Scene [idx + 1] */}
+                    {/* Transition Badge between Scene [idx] and Scene [idx + 1] -> Click to open Sidebar Transitions */}
                     {idx < scenes.length - 1 && (
                       <div
                         style={{ left: `${leftPct + widthPct}%` }}
@@ -472,68 +467,22 @@ export default function OpusTimeline({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setActiveTransitionPopoverId(
-                              activeTransitionPopoverId === scene.id ? null : scene.id
-                            );
+                            if (onOpenTransitionsTab) {
+                              onOpenTransitionsTab(scene.id);
+                            }
                           }}
-                          className={`transition-badge-btn px-1.5 py-0.5 rounded-md border flex items-center gap-1 shadow-lg text-[8px] font-bold transition-transform hover:scale-110 active:scale-95 ${
+                          className={`transition-badge-btn px-2 py-0.8 rounded-md border flex items-center gap-1 shadow-lg text-[9px] font-bold transition-all hover:scale-110 active:scale-95 cursor-pointer ${
                             scene.transition && scene.transition !== 'none'
-                              ? 'bg-amber-500 text-black border-amber-300 ring-1 ring-amber-400'
-                              : 'bg-[#181b29] hover:bg-[#252a40] text-amber-300 border-[#3d4464]'
+                              ? 'bg-amber-500 text-black border-amber-300 ring-2 ring-amber-400/60'
+                              : 'bg-[#181b29] hover:bg-amber-600 hover:text-white text-amber-300 border-[#3d4464]'
                           }`}
-                          title="Click để chọn hiệu ứng chuyển cảnh Transitions"
+                          title="Mở thanh Transitions bên phải để chọn hiệu ứng chuyển cảnh rộng rãi"
                         >
-                          <Zap className="w-2.5 h-2.5 fill-current" />
+                          <Zap className="w-3 h-3 fill-current text-current" />
                           <span className="uppercase">
-                            {scene.transition ? scene.transition.replace('_', ' ') : 'Chuyển Cảnh'}
+                            {getTransitionLabel(scene.transition)}
                           </span>
                         </button>
-
-                        {/* Transition Popover Selector */}
-                        {activeTransitionPopoverId === scene.id && (
-                          <div
-                            ref={transitionPopoverRef}
-                            onClick={(e) => e.stopPropagation()}
-                            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 bg-[#12141e] border border-[#30364f] rounded-2xl shadow-2xl p-2 z-50 space-y-1 animate-fade-in"
-                          >
-                            <div className="flex items-center justify-between pb-1 border-b border-[#23283e] text-[10px] font-bold text-white px-1">
-                              <span className="flex items-center gap-1">
-                                <Sparkles className="w-3 h-3 text-amber-400" />
-                                Hiệu Ứng Chuyển Cảnh
-                              </span>
-                              <button
-                                onClick={() => setActiveTransitionPopoverId(null)}
-                                className="text-slate-400 hover:text-white"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </div>
-
-                            <div className="max-h-48 overflow-y-auto space-y-1 pt-1">
-                              {TRANSITION_PRESETS.map((preset) => (
-                                <button
-                                  key={preset.id}
-                                  onClick={() => {
-                                    if (onUpdateSceneTransition) {
-                                      onUpdateSceneTransition(scene.id, preset.id);
-                                    }
-                                    setActiveTransitionPopoverId(null);
-                                  }}
-                                  className={`w-full p-1.5 rounded-lg text-left text-[10px] transition-colors flex items-center justify-between ${
-                                    (scene.transition || 'none') === preset.id
-                                      ? 'bg-amber-500 text-black font-bold'
-                                      : 'hover:bg-[#1f2334] text-slate-300'
-                                  }`}
-                                >
-                                  <div>
-                                    <div className="font-semibold">{preset.name}</div>
-                                    <div className="text-[8px] opacity-75">{preset.desc}</div>
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     )}
                   </React.Fragment>

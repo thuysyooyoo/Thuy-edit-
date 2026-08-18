@@ -46,7 +46,13 @@ export default function App() {
   const [autoCensor, setAutoCensor] = useState(false);
   const [autoTransitions, setAutoTransitions] = useState(true);
   const [activeTransition, setActiveTransition] = useState('zoom_in');
+  const [selectedTransitionSceneId, setSelectedTransitionSceneId] = useState(null);
   const [speakerColors, setSpeakerColors] = useState(true);
+
+  const handleOpenTransitionsTab = (sceneId) => {
+    setActiveSidebarTab('transitions');
+    setSelectedTransitionSceneId(sceneId);
+  };
 
   // Watermark Live Overlay
   const [watermark, setWatermark] = useState({
@@ -891,6 +897,10 @@ export default function App() {
                 autoMixMessage={autoMixMessage}
                 soundFxCount={soundFxMarkers.length}
                 onClearAllSoundFx={handleClearAllSoundFx}
+                clip={activeClip}
+                selectedTransitionSceneId={selectedTransitionSceneId}
+                setSelectedTransitionSceneId={setSelectedTransitionSceneId}
+                onUpdateSceneTransition={handleUpdateSceneTransition}
               />
             </div>
           </div>
@@ -910,6 +920,7 @@ export default function App() {
             onDeleteSelectedLayer={handleDeleteSelectedLayer}
             onAddMediaTrack={() => setIsBrollPickerOpen(true)}
             onOpenAudioTab={() => setActiveSidebarTab('audio')}
+            onOpenTransitionsTab={handleOpenTransitionsTab}
             onUpdateSoundFxTime={handleUpdateSoundFxTime}
             onDeleteSoundFx={handleDeleteSoundFx}
             onDeleteBroll={(id) => setBrolls(prev => prev.filter(b => b.id !== id))}

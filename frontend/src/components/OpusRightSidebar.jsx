@@ -92,7 +92,12 @@ export default function OpusRightSidebar({
   isAutoMixing = false,
   autoMixMessage = '',
   soundFxCount = 0,
-  onClearAllSoundFx
+  onClearAllSoundFx,
+  // Multi-Scene Transitions State
+  clip,
+  selectedTransitionSceneId,
+  setSelectedTransitionSceneId,
+  onUpdateSceneTransition
 }) {
   const [captionSubTab, setCaptionSubTab] = useState('presets');
   const [playingFx, setPlayingFx] = useState(null);
@@ -161,12 +166,12 @@ export default function OpusRightSidebar({
   ];
 
   const transitionsList = [
-    { id: 'zoom_in', name: 'Zoom In', desc: 'Phóng to vào vết cắt' },
-    { id: 'glitch', name: 'Digital Glitch', desc: 'Nhiễu sóng số' },
-    { id: 'whip_pan', name: 'Whip Pan', desc: 'Lướt camera nhanh' },
-    { id: 'dissolve', name: 'Cross Dissolve', desc: 'Hòa tan mềm mại' },
-    { id: 'flash_white', name: 'Flash White', desc: 'Chớp sáng điện ảnh' },
-    { id: 'blur_slide', name: 'Blur Slide', desc: 'Trượt mờ phương ngang' }
+    { id: 'zoom_in', name: 'Zoom In Punch', desc: 'Phóng to đột ngột tạo điểm nhấn thị giác mạnh mẽ', icon: '🔍' },
+    { id: 'flash_white', name: 'Flash White', desc: 'Chớp sáng điện ảnh lôi cuốn và mượt mà', icon: '⚡' },
+    { id: 'glitch', name: 'Glitch Cyber', desc: 'Hiệu ứng nhiễu sóng số phong cách hiện đại', icon: '👾' },
+    { id: 'fade_black', name: 'Fade Black', desc: 'Mờ dần vào nền đen điện ảnh tinh tế', icon: '🌑' },
+    { id: 'blur', name: 'Blur Dissolve', desc: 'Hòa tan làm mờ nhòe mềm mại', icon: '🌫️' },
+    { id: 'none', name: 'Không Chuyển Cảnh', desc: 'Cắt thẳng liền mạch tức thì (Hard Cut)', icon: '✂️' },
   ];
 
   const bgmTracks = [
@@ -894,30 +899,142 @@ export default function OpusRightSidebar({
         )}
 
         {/* ═══════════════════════════════════════════════════
-            TAB 6: TRANSITIONS
+            TAB 6: TRANSITIONS (CHUYỂN CẢNH ĐIỂM CẮT)
            ═══════════════════════════════════════════════════ */}
         {activeTab === 'transitions' && (
           <div className="space-y-4 font-sans text-xs">
-            <h3 className="font-bold text-white text-sm">Transitions (Chuyển Cảnh)</h3>
-            <div className="space-y-2">
-              {transitionsList.map((trans) => {
-                const isSelected = activeTransition === trans.id;
-                return (
-                  <div
-                    key={trans.id}
-                    onClick={() => setActiveTransition && setActiveTransition(trans.id)}
-                    className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                      isSelected ? 'bg-indigo-950/40 border-indigo-500 text-white ring-1 ring-indigo-500' : 'bg-[#161826] border-[#272b40] text-slate-300 hover:border-slate-500'
-                    }`}
-                  >
-                    <div>
-                      <div className="font-bold text-xs">{trans.name}</div>
-                      <div className="text-[10px] text-slate-400">{trans.desc}</div>
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                <InfinityIcon className="w-4 h-4 text-amber-400" />
+                <span>Transitions (Chuyển Cảnh)</span>
+              </h3>
+              {clip?.scenes && clip.scenes.length > 1 && (
+                <span className="bg-amber-950/70 border border-amber-500/50 text-amber-300 text-[10px] px-2.5 py-0.5 rounded-full font-bold">
+                  {clip.scenes.length - 1} Điểm Cắt
+                </span>
+              )}
+            </div>
+
+            {/* 1. Điểm Cắt Selector (nếu clip đã được cắt tách trên Timeline) */}
+            {clip?.scenes && clip.scenes.length > 1 ? (
+              <div className="p-3 bg-[#171926] border border-[#272b40] rounded-2xl space-y-2.5">
+                <div className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+                  <span>Chọn Điểm Cắt Cần Đổi Hiệu Ứng:</span>
+                  <span className="text-[10px] text-amber-400 font-mono">
+                    {(() => {
+                      const cur = clip.scenes.find(s => s.id === selectedTransitionSceneId) || clip.scenes[0];
+                      return cur ? `${cur.title} ➔` : 'Tất cả';
+                    })()}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto">
+                  {clip.scenes.slice(0, -1).map((sc, idx) => {
+                    const nextSc = clip.scenes[idx + 1];
+                    const isTarget = selectedTransitionSceneId === sc.id || (!selectedTransitionSceneId && idx === 0);
+                    return (
+                      <div
+                        key={sc.id}
+                        onClick={() => setSelectedTransitionSceneId && setSelectedTransitionSceneId(sc.id)}
+                        className={`p-2 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                          isTarget
+                            ? 'bg-amber-950/40 border-amber-500 text-white ring-1 ring-amber-500 shadow-md'
+                            : 'bg-[#12131e] border-[#222638] text-slate-300 hover:border-slate-500'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <span className="w-5 h-5 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-[10px]">
+                            {idx + 1}
+                          </span>
+                          <span className="font-semibold text-xs truncate">
+                            {sc.title} ➔ {nextSc?.title}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[9px] font-mono text-slate-400">
+                            ({sc.end_time.toFixed(1)}s)
+                          </span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-black/70 text-amber-300 uppercase">
+                            {sc.transition ? sc.transition.replace('_', ' ') : 'None'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Apply to All Cut Points Button */}
+                <button
+                  onClick={() => {
+                    if (clip?.scenes) {
+                      clip.scenes.forEach(sc => {
+                        if (onUpdateSceneTransition) onUpdateSceneTransition(sc.id, activeTransition);
+                      });
+                      alert(`Đã áp dụng hiệu ứng "${transitionsList.find(t => t.id === activeTransition)?.name}" cho tất cả ${clip.scenes.length - 1} điểm cắt!`);
+                    }
+                  }}
+                  className="w-full py-2 rounded-xl bg-[#202438] hover:bg-amber-600 hover:text-white text-amber-300 font-bold text-[11px] border border-[#313650] transition-colors flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Áp Dụng Hiệu Ứng Này Cho Tất Cả Điểm Cắt</span>
+                </button>
+              </div>
+            ) : (
+              <div className="p-3 bg-[#171926] border border-[#272b40] rounded-2xl text-[11px] text-slate-400 space-y-1.5">
+                <div className="font-bold text-slate-200">Hiệu Ứng Chuyển Cảnh Chung:</div>
+                <p className="text-[10px] leading-relaxed">
+                  Bấm nút <strong>Cắt Phân Cảnh (Split / Cây kéo)</strong> trên Timeline để chia đôi đoạn và chèn các chuyển cảnh độc lập tại từng vị trí.
+                </p>
+              </div>
+            )}
+
+            {/* 2. Full Transitions Cards Library */}
+            <div className="space-y-2 pt-1">
+              <div className="text-xs font-bold text-slate-300">Thư Viện Hiệu Ứng Chuyển Cảnh</div>
+              <div className="grid grid-cols-1 gap-2">
+                {transitionsList.map((trans) => {
+                  const targetScene = clip?.scenes?.find(s => s.id === selectedTransitionSceneId) || (clip?.scenes && clip.scenes[0]);
+                  const isSelected = targetScene ? (targetScene.transition || 'none') === trans.id : activeTransition === trans.id;
+
+                  return (
+                    <div
+                      key={trans.id}
+                      onClick={() => {
+                        if (targetScene && onUpdateSceneTransition) {
+                          onUpdateSceneTransition(targetScene.id, trans.id);
+                        }
+                        if (setActiveTransition) {
+                          setActiveTransition(trans.id);
+                        }
+                      }}
+                      className={`p-3 rounded-2xl border cursor-pointer transition-all flex items-center justify-between group ${
+                        isSelected 
+                          ? 'bg-amber-950/50 border-amber-500 text-white ring-2 ring-amber-500 shadow-lg' 
+                          : 'bg-[#151724] hover:bg-[#1f2235] border-[#25283c] text-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-black/60 border border-white/10 flex items-center justify-center text-lg shrink-0 group-hover:scale-110 transition-transform">
+                          {trans.icon}
+                        </div>
+                        <div>
+                          <div className="font-bold text-xs text-white group-hover:text-amber-300 transition-colors">
+                            {trans.name}
+                          </div>
+                          <div className="text-[10px] text-slate-400 line-clamp-1">
+                            {trans.desc}
+                          </div>
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <div className="w-6 h-6 rounded-full bg-amber-500 text-black flex items-center justify-center font-bold shrink-0 shadow-md">
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        </div>
+                      )}
                     </div>
-                    {isSelected && <Check className="w-4 h-4 text-indigo-400" />}
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
