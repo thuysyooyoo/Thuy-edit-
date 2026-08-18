@@ -177,12 +177,12 @@ export default function OpusRightSidebar({
   ];
 
   const transitionsList = [
-    { id: 'zoom_in', name: 'Zoom In Punch', desc: 'Phóng to đột ngột tạo điểm nhấn thị giác mạnh mẽ', icon: '🔍' },
-    { id: 'flash_white', name: 'Flash White', desc: 'Chớp sáng điện ảnh lôi cuốn và mượt mà', icon: '⚡' },
-    { id: 'glitch', name: 'Glitch Cyber', desc: 'Hiệu ứng nhiễu sóng số phong cách hiện đại', icon: '👾' },
-    { id: 'fade_black', name: 'Fade Black', desc: 'Mờ dần vào nền đen điện ảnh tinh tế', icon: '🌑' },
-    { id: 'blur', name: 'Blur Dissolve', desc: 'Hòa tan làm mờ nhòe mềm mại', icon: '🌫️' },
-    { id: 'none', name: 'Không Chuyển Cảnh', desc: 'Cắt thẳng liền mạch tức thì (Hard Cut)', icon: '✂️' },
+    { id: 'zoom_in', name: 'Zoom In Punch', desc: 'Phóng to đột ngột tạo điểm nhấn thị giác mạnh mẽ' },
+    { id: 'flash_white', name: 'Flash White', desc: 'Chớp sáng điện ảnh lôi cuốn và mượt mà' },
+    { id: 'glitch', name: 'Glitch Cyber', desc: 'Hiệu ứng nhiễu sóng số phong cách hiện đại' },
+    { id: 'fade_black', name: 'Fade Black', desc: 'Mờ dần vào nền đen điện ảnh tinh tế' },
+    { id: 'blur', name: 'Blur Dissolve', desc: 'Hòa tan làm mờ nhòe mềm mại' },
+    { id: 'none', name: 'Không Chuyển Cảnh', desc: 'Cắt thẳng liền mạch tức thì (Hard Cut)' },
   ];
 
   const bgmTracks = [
@@ -1172,8 +1172,8 @@ export default function OpusRightSidebar({
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-black/60 border border-white/10 flex items-center justify-center text-lg shrink-0 group-hover:scale-110 transition-transform">
-                          {trans.icon}
+                        <div className="w-8 h-8 rounded-xl bg-[#1c1e2e] border border-white/10 flex items-center justify-center font-bold text-[10px] text-amber-400 shrink-0">
+                          {trans.id.slice(0, 2).toUpperCase()}
                         </div>
                         <div>
                           <div className="font-bold text-xs text-white group-hover:text-amber-300 transition-colors">
@@ -1226,7 +1226,7 @@ export default function OpusRightSidebar({
                 </button>
 
                 <button
-                  onClick={() => onAddTextLayer && onAddTextLayer("⚡ BÍ QUYẾT VIRAL", "neon_tag")}
+                  onClick={() => onAddTextLayer && onAddTextLayer("BÍ QUYẾT VIRAL", "neon_tag")}
                   className="p-3 bg-[#161826] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
                 >
                   <div>
@@ -1237,7 +1237,7 @@ export default function OpusRightSidebar({
                 </button>
 
                 <button
-                  onClick={() => onAddTextLayer && onAddTextLayer("🔥 XEM NGAY ĐIỀU NÀY", "gradient_badge")}
+                  onClick={() => onAddTextLayer && onAddTextLayer("XEM NGAY ĐIỀU NÀY", "gradient_badge")}
                   className="p-3 bg-[#161826] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
                 >
                   <div>

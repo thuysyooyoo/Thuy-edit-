@@ -210,7 +210,7 @@ export default function ClipPreviewModal({
             <div className="grid grid-cols-3 gap-2 text-xs">
               <div className="p-2.5 rounded-xl bg-amber-950/30 border border-amber-500/40 space-y-1">
                 <div className="flex items-center justify-between text-amber-400 font-bold text-[11px]">
-                  <span>🪝 Hook</span>
+                  <span>Hook</span>
                   <span className="text-[10px] bg-amber-500/20 px-1.5 py-0.2 rounded font-mono">{clip.hook_grade || 'A+'}</span>
                 </div>
                 <p className="text-[11px] text-slate-300 line-clamp-2 leading-tight">
@@ -220,7 +220,7 @@ export default function ClipPreviewModal({
 
               <div className="p-2.5 rounded-xl bg-rose-950/30 border border-rose-500/40 space-y-1">
                 <div className="flex items-center justify-between text-rose-400 font-bold text-[11px]">
-                  <span>⚠️ Problem</span>
+                  <span>Problem</span>
                   <span className="text-[10px] bg-rose-500/20 px-1.5 py-0.2 rounded font-mono">{clip.problem_grade || 'A'}</span>
                 </div>
                 <p className="text-[11px] text-slate-300 line-clamp-2 leading-tight">
@@ -230,7 +230,7 @@ export default function ClipPreviewModal({
 
               <div className="p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/40 space-y-1">
                 <div className="flex items-center justify-between text-emerald-400 font-bold text-[11px]">
-                  <span>💡 Solution</span>
+                  <span>Solution</span>
                   <span className="text-[10px] bg-emerald-500/20 px-1.5 py-0.2 rounded font-mono">{clip.solution_grade || 'A+'}</span>
                 </div>
                 <p className="text-[11px] text-slate-300 line-clamp-2 leading-tight">

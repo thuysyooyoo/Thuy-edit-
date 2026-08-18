@@ -49,7 +49,6 @@ export default function ClipCard({ clip, isActive, onSelect }) {
       <div className="space-y-1.5 text-xs text-slate-300">
         {clip.hook && (
           <div className="flex items-start gap-1.5 bg-dark-900/60 p-2 rounded-xl border border-dark-700/60">
-            <Sparkles className="w-3.5 h-3.5 text-yellow-400 shrink-0 mt-0.5" />
             <p className="line-clamp-1">
               <strong className="text-yellow-400/90 font-semibold">Hook: </strong>
               {clip.hook}
@@ -59,7 +58,6 @@ export default function ClipCard({ clip, isActive, onSelect }) {
 
         {clip.problem && (
           <div className="flex items-start gap-1.5 bg-dark-900/60 p-2 rounded-xl border border-dark-700/60">
-            <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
             <p className="line-clamp-1">
               <strong className="text-rose-400/90 font-semibold">Problem: </strong>
               {clip.problem}
@@ -69,7 +67,6 @@ export default function ClipCard({ clip, isActive, onSelect }) {
 
         {clip.solution && (
           <div className="flex items-start gap-1.5 bg-dark-900/60 p-2 rounded-xl border border-dark-700/60">
-            <Lightbulb className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
             <p className="line-clamp-1">
               <strong className="text-emerald-400/90 font-semibold">Solution: </strong>
               {clip.solution}

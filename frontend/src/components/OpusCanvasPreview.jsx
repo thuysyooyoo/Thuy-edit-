@@ -365,11 +365,13 @@ export default function OpusCanvasPreview({
     }
 
     return (
-      <div className={`w-full h-full bg-gradient-to-br from-amber-900 via-slate-900 to-black flex flex-col items-center justify-center p-3 text-center overflow-hidden ${extraClass}`}>
-        <div className="animate-ken-burns flex flex-col items-center justify-center">
-          <span className="text-4xl mb-1 drop-shadow-lg">{broll.thumb || '🎬'}</span>
-          <span className="text-xs font-black text-amber-300 uppercase tracking-wider line-clamp-1">{broll.title}</span>
-          <span className="text-[9px] text-slate-400 font-mono">B-Roll Motion Footage</span>
+      <div className={`w-full h-full bg-gradient-to-br from-slate-900 via-[#131522] to-black flex flex-col items-center justify-center p-3 text-center overflow-hidden ${extraClass}`}>
+        <div className="flex flex-col items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 font-bold text-xs mb-1.5 shadow-md">
+            B-Roll
+          </div>
+          <span className="text-xs font-bold text-amber-300 uppercase tracking-wider line-clamp-1">{broll.title}</span>
+          <span className="text-[9px] text-slate-400 font-mono">Footage</span>
         </div>
       </div>
     );
@@ -843,7 +845,6 @@ export default function OpusCanvasPreview({
               >
                 {activePhrase.slice(0, 5).map((w, idx) => {
                   const isCurrent = currentTime >= w.start && currentTime <= w.end;
-                  const wordEmoji = aiEmoji ? getWordEmoji(w.word) : null;
                   
                   let displayWord = w.word;
                   if (autoCensor && ['rủi', 'chết', 'nguy'].includes(w.word.toLowerCase())) {
@@ -864,9 +865,6 @@ export default function OpusCanvasPreview({
                       }`}
                     >
                       {displayWord}
-                      {wordEmoji && isCurrent && (
-                        <span className="ml-1 text-sm inline-block animate-bounce">{wordEmoji}</span>
-                      )}
                     </span>
                   );
                 })}
