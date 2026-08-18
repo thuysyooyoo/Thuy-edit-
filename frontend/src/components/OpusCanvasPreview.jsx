@@ -819,9 +819,17 @@ export default function OpusCanvasPreview({
         })}
 
         {/* ═════════════════════════════════════════════════════════════════════════════════
-            3. TOP HOOK HEADLINE OVERLAY (KÉO RỘNG KHUNG, KÉO CAO, ZOOM GÓC, SỬA & XÓA)
+            3. TOP HOOK HEADLINE OVERLAY (KÉO RỘNG KHUNG, KÉO CAO, ZOOM GÓC, SỬA & XÓA, ĐỒNG BỘ TIMELINE)
            ═════════════════════════════════════════════════════════════════════════════════ */}
         {titleConfig?.visible !== false && (
+          titleConfig?.startTime === undefined ||
+          (
+            (currentTime >= (titleConfig.startTime - 0.05) && currentTime <= (titleConfig.startTime + (titleConfig.duration || 9999) + 0.05)) ||
+            (currentTime - clipStart >= (titleConfig.startTime - 0.05) && currentTime - clipStart <= (titleConfig.startTime + (titleConfig.duration || 9999) + 0.05))
+          ) ||
+          selectedElement?.type === 'title' ||
+          editingTitle
+        ) && (
           <div 
             style={{
               top: `${titleConfig?.pos?.y ?? 10}%`,

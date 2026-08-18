@@ -23,6 +23,9 @@ export default function OpusTimeline({
   isPlaying,
   onTogglePlay,
   totalDuration = 142.17,
+  titleConfig,
+  onUpdateTitleConfig,
+  customTitle,
   brolls = [],
   soundFxMarkers = [],
   textLayers = [],
@@ -46,10 +49,25 @@ export default function OpusTimeline({
   const [selectedSceneId, setSelectedSceneId] = useState(null);
   const [selectedMarkerId, setSelectedMarkerId] = useState(null);
   const [selectedBrollId, setSelectedBrollId] = useState(null);
+  const [selectedTitle, setSelectedTitle] = useState(false);
   const [draggingId, setDraggingId] = useState(null);
+  const [titleDraggingMode, setTitleDraggingMode] = useState(null); // 'move' | 'resize_left' | 'resize_right'
+  const [titleDragState, setTitleDragState] = useState(null);
 
   const volumeRef = useRef(null);
   const containerTrackRef = useRef(null);
+
+  const handleTitleMouseDown = (e, mode) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setSelectedTitle(true);
+    setTitleDraggingMode(mode);
+    setTitleDragState({
+      startMouseX: e.clientX,
+      initialStartTime: titleConfig?.startTime ?? 0,
+      initialDuration: titleConfig?.duration ?? 6
+    });
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -61,6 +79,9 @@ export default function OpusTimeline({
       }
       if (event.target.closest('.broll-track-block') === null) {
         setSelectedBrollId(null);
+      }
+      if (event.target.closest('.title-track-block') === null) {
+        setSelectedTitle(false);
       }
       if (event.target.closest('.scene-track-block') === null && event.target.closest('.transition-badge-btn') === null) {
         setSelectedSceneId(null);
@@ -96,18 +117,46 @@ export default function OpusTimeline({
     return Math.max(0, Math.min(clipDuration, elapsed));
   })();
 
-  // Global mouse handlers for Drag and Drop on Sound FX Timeline Markers
+  // Global mouse handlers for Drag and Drop on Sound FX & Title Timeline Markers
   useEffect(() => {
     const handleGlobalMouseMove = (e) => {
-      if (!draggingId || !containerTrackRef.current) return;
-      
-      const rect = containerTrackRef.current.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const ratio = Math.max(0, Math.min(1, clickX / rect.width));
-      const newRelTime = ratio * clipDuration;
-      
-      if (onUpdateSoundFxTime) {
-        onUpdateSoundFxTime(draggingId, newRelTime);
+      // 1. Sound FX Marker Dragging
+      if (draggingId && containerTrackRef.current) {
+        const rect = containerTrackRef.current.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const ratio = Math.max(0, Math.min(1, clickX / rect.width));
+        const newRelTime = ratio * clipDuration;
+        if (onUpdateSoundFxTime) {
+          onUpdateSoundFxTime(draggingId, newRelTime);
+        }
+      }
+
+      // 2. Title Block Dragging & Resizing
+      if (titleDraggingMode && titleDragState && containerTrackRef.current && onUpdateTitleConfig) {
+        const rect = containerTrackRef.current.getBoundingClientRect();
+        const deltaSeconds = ((e.clientX - titleDragState.startMouseX) / rect.width) * clipDuration;
+
+        if (titleDraggingMode === 'move') {
+          const newStart = Math.max(0, Math.min(clipDuration - 0.8, titleDragState.initialStartTime + deltaSeconds));
+          onUpdateTitleConfig(prev => ({
+            ...prev,
+            startTime: Math.round(newStart * 10) / 10
+          }));
+        } else if (titleDraggingMode === 'resize_right') {
+          const newDur = Math.max(0.8, Math.min(clipDuration - (titleConfig?.startTime ?? 0), titleDragState.initialDuration + deltaSeconds));
+          onUpdateTitleConfig(prev => ({
+            ...prev,
+            duration: Math.round(newDur * 10) / 10
+          }));
+        } else if (titleDraggingMode === 'resize_left') {
+          const newStart = Math.max(0, Math.min(titleDragState.initialStartTime + titleDragState.initialDuration - 0.8, titleDragState.initialStartTime + deltaSeconds));
+          const newDur = Math.max(0.8, (titleDragState.initialStartTime + titleDragState.initialDuration) - newStart);
+          onUpdateTitleConfig(prev => ({
+            ...prev,
+            startTime: Math.round(newStart * 10) / 10,
+            duration: Math.round(newDur * 10) / 10
+          }));
+        }
       }
     };
 
@@ -115,18 +164,21 @@ export default function OpusTimeline({
       if (draggingId) {
         setDraggingId(null);
       }
+      if (titleDraggingMode) {
+        setTitleDraggingMode(null);
+        setTitleDragState(null);
+      }
     };
 
-    if (draggingId) {
+    if (draggingId || titleDraggingMode) {
       window.addEventListener('mousemove', handleGlobalMouseMove);
       window.addEventListener('mouseup', handleGlobalMouseUp);
     }
-
     return () => {
       window.removeEventListener('mousemove', handleGlobalMouseMove);
       window.removeEventListener('mouseup', handleGlobalMouseUp);
     };
-  }, [draggingId, clipDuration, onUpdateSoundFxTime]);
+  }, [draggingId, titleDraggingMode, titleDragState, clipDuration, onUpdateSoundFxTime, onUpdateTitleConfig, titleConfig]);
 
   const handleMarkerMouseDown = (e, markerId) => {
     e.stopPropagation();
@@ -409,6 +461,50 @@ export default function OpusTimeline({
                   </div>
                 );
               })}
+              {/* Hook Title Track Block (Kéo dời vị trí & Kéo 2 đầu chỉnh độ dài thời gian) */}
+              {titleConfig?.visible !== false && (
+                <div
+                  style={{
+                    left: `${Math.max(0, Math.min(95, ((titleConfig?.startTime ?? 0) / clipDuration) * 100))}%`,
+                    width: `${Math.max(5, Math.min(100 - Math.max(0, Math.min(95, ((titleConfig?.startTime ?? 0) / clipDuration) * 100)), ((titleConfig?.duration ?? 6) / clipDuration) * 100))}%`
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedTitle(true);
+                  }}
+                  onMouseDown={(e) => handleTitleMouseDown(e, 'move')}
+                  className={`title-track-block absolute top-1 h-6 rounded-md border flex items-center justify-between px-1 text-[9px] font-bold shadow-md cursor-grab active:cursor-grabbing transition-all select-none z-25 ${
+                    selectedTitle
+                      ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black border-white ring-2 ring-yellow-300 shadow-xl'
+                      : 'bg-gradient-to-r from-amber-600/90 to-yellow-600/90 hover:from-amber-500 hover:to-yellow-500 text-white border-amber-300'
+                  }`}
+                  title={`Tiêu đề Hook (${(titleConfig?.duration ?? 6).toFixed(1)}s) - Giữ để dời vị trí hoặc kéo 2 mép để chỉnh thời lượng`}
+                >
+                  {/* Left Resize Handle */}
+                  <div
+                    onMouseDown={(e) => handleTitleMouseDown(e, 'resize_left')}
+                    className="w-2 h-full bg-white/40 hover:bg-white cursor-ew-resize rounded-l-sm flex items-center justify-center text-[7px]"
+                    title="Kéo mép trái để đổi mốc bắt đầu"
+                  >
+                    |
+                  </div>
+
+                  <div className="flex items-center gap-1 truncate px-1 pointer-events-none">
+                    <span>📌</span>
+                    <span className="truncate">{customTitle || clip?.title || 'Tiêu Đề Hook'}</span>
+                    <span className="text-[8px] opacity-90 font-mono">({(titleConfig?.duration ?? 6).toFixed(1)}s)</span>
+                  </div>
+
+                  {/* Right Resize Handle */}
+                  <div
+                    onMouseDown={(e) => handleTitleMouseDown(e, 'resize_right')}
+                    className="w-2 h-full bg-white/40 hover:bg-white cursor-ew-resize rounded-r-sm flex items-center justify-center text-[7px]"
+                    title="Kéo mép phải để kéo dài / thu ngắn thời lượng"
+                  >
+                    |
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* ── TRACK 2: Multi-Scene Video Segments & Transitions ── */}

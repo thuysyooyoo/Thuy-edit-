@@ -108,14 +108,18 @@ export default function OpusRightSidebar({
   brandConfig,
   setBrandConfig,
   titleConfig,
-  setTitleConfig
+  setTitleConfig,
+  // Background Music Props
+  selectedBgm = 'none',
+  setSelectedBgm,
+  bgmVolume = 25,
+  setBgmVolume,
+  customBgmList = [],
+  setCustomBgmList
 }) {
   const [captionSubTab, setCaptionSubTab] = useState('presets');
   const [playingFx, setPlayingFx] = useState(null);
-
-  // Media Tab State
-  const [bgmVolume, setBgmVolume] = useState(25);
-  const [selectedBgm, setSelectedBgm] = useState(null);
+  const bgmFileInputRef = useRef(null);
 
   // Text Tab State
   const [customTextInput, setCustomTextInput] = useState('');
@@ -1003,45 +1007,119 @@ export default function OpusRightSidebar({
               </div>
             </div>
 
-            {/* 2. Background Music Selector */}
+            {/* 2. Background Music Selector (Kích hoạt phát & tải nhạc nền) */}
             <div className="p-3.5 bg-[#171926] border border-[#272b40] rounded-2xl space-y-3">
-              <div className="font-bold text-white flex items-center gap-1.5">
-                <Music className="w-4 h-4 text-emerald-400" />
-                <span>Kho Nhạc Nền (BGM)</span>
+              <div className="flex items-center justify-between">
+                <div className="font-bold text-white flex items-center gap-1.5">
+                  <Music className="w-4 h-4 text-emerald-400" />
+                  <span>Kho Nhạc Nền (BGM)</span>
+                </div>
+                <button
+                  onClick={() => bgmFileInputRef.current?.click()}
+                  className="px-2 py-0.5 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white font-bold text-[9px] flex items-center gap-1 transition-all"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Tải nhạc từ máy</span>
+                </button>
+                <input
+                  ref={bgmFileInputRef}
+                  type="file"
+                  accept="audio/mp3,audio/wav,audio/m4a,audio/aac"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file && setCustomBgmList && setSelectedBgm) {
+                      const url = URL.createObjectURL(file);
+                      const newTrack = {
+                        id: `custom_bgm_${Date.now()}`,
+                        name: file.name.replace(/\.[^/.]+$/, ""),
+                        bpm: 'Tự tải lên',
+                        duration: 'Audio',
+                        url: url,
+                        isCustom: true
+                      };
+                      setCustomBgmList(prev => [newTrack, ...prev]);
+                      setSelectedBgm(newTrack.id);
+                    }
+                  }}
+                  className="hidden"
+                />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
+                {/* 1. Mute / No BGM option */}
+                <div
+                  onClick={() => setSelectedBgm && setSelectedBgm('none')}
+                  className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                    selectedBgm === 'none' ? 'bg-slate-800/90 border-slate-400 text-white shadow-md' : 'bg-[#12131e] border-[#222638] text-slate-400 hover:border-slate-500'
+                  }`}
+                >
+                  <div className="font-bold text-xs">🔇 Không dùng nhạc nền (Tắt BGM)</div>
+                  {selectedBgm === 'none' && <Check className="w-4 h-4 text-white" />}
+                </div>
+
+                {/* 2. Custom Uploaded Tracks */}
+                {customBgmList.map((track) => (
+                  <div
+                    key={track.id}
+                    onClick={() => setSelectedBgm && setSelectedBgm(track.id)}
+                    className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                      selectedBgm === track.id ? 'bg-emerald-950/50 border-emerald-500 text-white shadow-md ring-1 ring-emerald-400' : 'bg-[#12131e] border-[#25283c] text-slate-300 hover:border-slate-500'
+                    }`}
+                  >
+                    <div className="truncate flex-1 pr-2">
+                      <div className="font-bold text-xs text-emerald-300 truncate">🎵 {track.name}</div>
+                      <div className="text-[10px] text-slate-400 font-mono">Nhạc tải lên từ máy</div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {selectedBgm === track.id && <Check className="w-4 h-4 text-emerald-400" />}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (setCustomBgmList) setCustomBgmList(prev => prev.filter(t => t.id !== track.id));
+                          if (selectedBgm === track.id && setSelectedBgm) setSelectedBgm('none');
+                        }}
+                        className="p-1 rounded bg-rose-950/60 text-rose-300 hover:bg-rose-600 hover:text-white transition-colors"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* 3. Stock Tracks */}
                 {bgmTracks.map((track) => (
                   <div
                     key={track.id}
-                    onClick={() => setSelectedBgm(track.id)}
+                    onClick={() => setSelectedBgm && setSelectedBgm(track.id)}
                     className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                      selectedBgm === track.id ? 'bg-emerald-950/40 border-emerald-500/50 text-white shadow-md' : 'bg-[#12131e] border-[#25283c] text-slate-300 hover:border-slate-500'
+                      selectedBgm === track.id ? 'bg-emerald-950/50 border-emerald-500 text-white shadow-md ring-1 ring-emerald-400' : 'bg-[#12131e] border-[#25283c] text-slate-300 hover:border-slate-500'
                     }`}
                   >
                     <div>
                       <div className="font-bold text-xs">{track.name}</div>
-                      <div className="text-[10px] text-slate-400">{track.bpm} • {track.duration}</div>
+                      <div className="text-[10px] text-slate-400 font-mono">{track.bpm} • {track.duration}</div>
                     </div>
                     {selectedBgm === track.id && <Check className="w-4 h-4 text-emerald-400" />}
                   </div>
                 ))}
               </div>
 
-              <div className="space-y-1 pt-1 border-t border-[#222638]">
-                <div className="flex items-center justify-between text-slate-300">
-                  <span>Âm lượng nhạc nền:</span>
-                  <span className="font-mono text-emerald-400">{bgmVolume}%</span>
+              {selectedBgm !== 'none' && (
+                <div className="space-y-1 pt-2 border-t border-[#222638]">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span>Âm lượng nhạc nền:</span>
+                    <span className="font-mono text-emerald-400">{bgmVolume}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="5"
+                    max="100"
+                    value={bgmVolume}
+                    onChange={(e) => setBgmVolume && setBgmVolume(parseInt(e.target.value))}
+                    className="w-full h-1.5 bg-[#25283a] rounded-lg appearance-none accent-emerald-500 cursor-pointer"
+                  />
                 </div>
-                <input
-                  type="range"
-                  min="5"
-                  max="100"
-                  value={bgmVolume}
-                  onChange={(e) => setBgmVolume(parseInt(e.target.value))}
-                  className="w-full h-1.5 bg-[#25283a] rounded-lg appearance-none accent-emerald-500 cursor-pointer"
-                />
-              </div>
+              )}
             </div>
           </div>
         )}
@@ -1374,73 +1452,11 @@ export default function OpusRightSidebar({
                 ))}
               </div>
             </div>
-            
-            {/* 2. Quick Text Presets */}
-            <div className="p-3.5 bg-[#171926] border border-[#272b40] rounded-2xl space-y-2">
-              <div className="text-[11px] font-bold text-slate-300">Thêm Nhãn Dán Chữ Nhanh (Text Layers):</div>
-              
-              <div className="grid grid-cols-1 gap-2">
-                <button
-                  onClick={() => onAddTextLayer && onAddTextLayer("TIÊU ĐỀ NỔI BẬT", "header")}
-                  className="p-3 bg-[#12131e] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
-                >
-                  <div>
-                    <div className="font-black text-xs text-white uppercase group-hover:text-indigo-300">+ Tiêu Đề Lớn (Header)</div>
-                    <div className="text-[10px] text-slate-400">Chữ in hoa trắng, đổ bóng dày nổi bật</div>
-                  </div>
-                  <span className="text-[9px] px-2 py-0.5 rounded bg-indigo-600 text-white font-bold shrink-0">Thêm</span>
-                </button>
 
-                <button
-                  onClick={() => onAddTextLayer && onAddTextLayer("BÍ QUYẾT VIRAL", "neon_tag")}
-                  className="p-3 bg-[#12131e] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
-                >
-                  <div>
-                    <div className="font-bold text-xs text-emerald-300 group-hover:text-emerald-200">+ Nhãn Neon Dạ Quang (Neon Tag)</div>
-                    <div className="text-[10px] text-slate-400">Viền neon xanh dạ quang phát sáng</div>
-                  </div>
-                  <span className="text-[9px] px-2 py-0.5 rounded bg-emerald-600 text-white font-bold shrink-0">Thêm</span>
-                </button>
-
-                <button
-                  onClick={() => onAddTextLayer && onAddTextLayer("XEM NGAY ĐIỀU NÀY", "gradient_badge")}
-                  className="p-3 bg-[#12131e] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
-                >
-                  <div>
-                    <div className="font-black text-xs text-amber-300 group-hover:text-amber-200">+ Thẻ Gradient Rực Rỡ (Badge)</div>
-                    <div className="text-[10px] text-slate-400">Dải cam vàng rực rỡ thu hút mắt nhìn</div>
-                  </div>
-                  <span className="text-[9px] px-2 py-0.5 rounded bg-amber-600 text-white font-bold shrink-0">Thêm</span>
-                </button>
-
-                <button
-                  onClick={() => onAddTextLayer && onAddTextLayer("Chú thích quan trọng...", "callout_box")}
-                  className="p-3 bg-[#12131e] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
-                >
-                  <div>
-                    <div className="font-medium text-xs text-slate-200 group-hover:text-white">+ Khung Chú Thích (Callout Box)</div>
-                    <div className="text-[10px] text-slate-400">Nền tối bo góc thanh lịch</div>
-                  </div>
-                  <span className="text-[9px] px-2 py-0.5 rounded bg-slate-700 text-white font-bold shrink-0">Thêm</span>
-                </button>
-
-                <button
-                  onClick={() => onAddTextLayer && onAddTextLayer("KHÔNG THỂ TIN ĐƯỢC!", "yellow_impact")}
-                  className="p-3 bg-[#12131e] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
-                >
-                  <div>
-                    <div className="font-black text-xs text-yellow-300 group-hover:text-yellow-200">+ Chữ Vàng Viền Đen (Yellow Impact)</div>
-                    <div className="text-[10px] text-slate-400">Phong cách MrBeast giật gân</div>
-                  </div>
-                  <span className="text-[9px] px-2 py-0.5 rounded bg-yellow-600 text-black font-bold shrink-0">Thêm</span>
-                </button>
-              </div>
-            </div>
-
-            {/* 3. Custom Text Input */}
+            {/* 2. Custom Text Input */}
             <div className="p-3.5 bg-[#171926] border border-[#272b40] rounded-2xl space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-slate-300 font-bold">Tự gõ chữ tùy ý:</span>
+                <span className="text-slate-300 font-bold">Thêm Chữ / Nhãn Dán Tùy Ý:</span>
                 <select
                   value={selectedTextStyle}
                   onChange={(e) => setSelectedTextStyle(e.target.value)}

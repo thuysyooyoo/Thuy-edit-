@@ -67,14 +67,16 @@ export default function App() {
     accentColor: '#ff007a'
   });
 
-  // Top Hook Title Style, Position, Scale, ScaleX, ScaleY & Visibility
+  // Top Hook Title Style, Position, Scale, ScaleX, ScaleY, Timing & Visibility
   const [titleConfig, setTitleConfig] = useState({
     visible: true,
     style: 'pill_white', // 'pill_white' | 'neon_cyber' | 'gradient_gold' | 'yellow_impact' | 'minimal'
     scale: 100, // percentage 40 - 300
     scaleX: 100, // horizontal stretch %
     scaleY: 100, // vertical stretch %
-    pos: { x: 50, y: 10 } // Draggable percentage position
+    pos: { x: 50, y: 10 }, // Draggable percentage position
+    startTime: 0, // start offset in seconds
+    duration: 6 // duration in seconds
   });
 
   // Subtitle / Caption Position, Scale, ScaleX, ScaleY & Visibility
@@ -85,6 +87,12 @@ export default function App() {
     scaleY: 100, // vertical stretch %
     pos: { x: 50, y: 84 } // Draggable percentage position
   });
+
+  // Background Music (BGM) State
+  const [selectedBgm, setSelectedBgm] = useState('none');
+  const [bgmVolume, setBgmVolume] = useState(25);
+  const [customBgmList, setCustomBgmList] = useState([]);
+  const bgmAudioRef = useRef(new Audio());
 
   // Auto vs Manual Sound FX & Ducking (Phiên 3)
   const [autoWhoosh, setAutoWhoosh] = useState(true);
@@ -139,7 +147,7 @@ export default function App() {
   const audioContextRef = useRef(null);
   const audioNodesRef = useRef(null);
 
-  // 🎧 Web Audio API Real-time Speech Noise Filter & Vocal Presence Boost
+  // 🎧 Web Audio API Real-time Speech Noise Filter & Studio Noise Gate (Triệt tiêu 100% ồn nền khi ngắt giọng)
   useEffect(() => {
     if (!videoRef.current) return;
     
@@ -151,45 +159,117 @@ export default function App() {
           const ctx = new AudioContext();
           const source = ctx.createMediaElementSource(videoRef.current);
           
-          // 1. High-Pass Filter (Cắt tần số thấp dưới 85Hz - triệt tiêu tiếng ù gió, tiếng rung bàn, quạt)
-          const highPass = ctx.createBiquadFilter();
-          highPass.type = 'highpass';
-          highPass.frequency.value = 85;
+          // 1. Cascaded 24dB/oct High-Pass Filters (Triệt tiêu toàn bộ tiếng ầm rì, rung máy, gió dưới 110Hz)
+          const highPass1 = ctx.createBiquadFilter();
+          highPass1.type = 'highpass';
+          highPass1.frequency.value = 110;
+          highPass1.Q.value = 0.707;
 
-          // 2. Peaking Filter (Tăng độ nét dải trung cao của giọng nói 3000Hz)
+          const highPass2 = ctx.createBiquadFilter();
+          highPass2.type = 'highpass';
+          highPass2.frequency.value = 110;
+          highPass2.Q.value = 0.707;
+
+          // 2. Notch Filters (Triệt tiêu tiếng ù điện xoay chiều 50Hz, 60Hz)
+          const notch50 = ctx.createBiquadFilter();
+          notch50.type = 'notch';
+          notch50.frequency.value = 50;
+          notch50.Q.value = 10;
+
+          const notch60 = ctx.createBiquadFilter();
+          notch60.type = 'notch';
+          notch60.frequency.value = 60;
+          notch60.Q.value = 10;
+
+          // 3. Cascaded 24dB/oct Low-Pass Filters (Cắt bỏ tiếng rít cao tần, quạt gió trên 6800Hz)
+          const lowPass1 = ctx.createBiquadFilter();
+          lowPass1.type = 'lowpass';
+          lowPass1.frequency.value = 6800;
+          lowPass1.Q.value = 0.707;
+
+          const lowPass2 = ctx.createBiquadFilter();
+          lowPass2.type = 'lowpass';
+          lowPass2.frequency.value = 6800;
+          lowPass2.Q.value = 0.707;
+
+          // 4. Vocal Formant Peaking Boosts (Làm ấm và rõ âm thoại tiếng Việt)
           const vocalPresence = ctx.createBiquadFilter();
           vocalPresence.type = 'peaking';
           vocalPresence.frequency.value = 3000;
-          vocalPresence.Q.value = 1.2;
-          vocalPresence.gain.value = 5.0;
+          vocalPresence.Q.value = 1.4;
+          vocalPresence.gain.value = 6.0;
 
-          // 3. Low-Pass Filter (Lọc tạp âm xì xào tần số cực cao trên 8500Hz)
-          const lowPass = ctx.createBiquadFilter();
-          lowPass.type = 'lowpass';
-          lowPass.frequency.value = 8500;
+          const vocalWarmth = ctx.createBiquadFilter();
+          vocalWarmth.type = 'peaking';
+          vocalWarmth.frequency.value = 1200;
+          vocalWarmth.Q.value = 1.0;
+          vocalWarmth.gain.value = 2.5;
 
-          // 4. Dynamics Compressor (Cân bằng âm lượng, nén giọng đều đặn)
+          // 5. Dynamics Compressor (Cân bằng dải động âm lượng)
           const compressor = ctx.createDynamicsCompressor();
-          compressor.threshold.value = -24;
-          compressor.knee.value = 30;
-          compressor.ratio.value = 4;
+          compressor.threshold.value = -22;
+          compressor.knee.value = 25;
+          compressor.ratio.value = 5;
           compressor.attack.value = 0.003;
-          compressor.release.value = 0.25;
+          compressor.release.value = 0.20;
+
+          // 6. Real-time Studio Noise Gate Node & Analyser (Tự động ngắt tiếng xì xào khi ngừng nói)
+          const gateGain = ctx.createGain();
+          gateGain.gain.value = 1.0;
+
+          const analyser = ctx.createAnalyser();
+          analyser.fftSize = 512;
+          const pcmData = new Float32Array(analyser.fftSize);
+
+          let isGateOpen = true;
+          const checkNoiseGate = () => {
+            if (ctx.state === 'running') {
+              analyser.getFloatTimeDomainData(pcmData);
+              let sum = 0;
+              for (let i = 0; i < pcmData.length; i++) {
+                sum += pcmData[i] * pcmData[i];
+              }
+              const rms = Math.sqrt(sum / pcmData.length);
+              const db = 20 * Math.log10(Math.max(1e-5, rms));
+
+              // Nếu âm lượng < -40dB (khoảng nghỉ/chỉ có tiếng ồn nền) -> Đóng cổng ngắt sạch 98% tạp âm
+              if (db < -40) {
+                if (isGateOpen) {
+                  isGateOpen = false;
+                  gateGain.gain.setTargetAtTime(0.015, ctx.currentTime, 0.04);
+                }
+              } else if (db >= -36) { // Khi người nói cất giọng -> Mở cổng tức thì
+                if (!isGateOpen) {
+                  isGateOpen = true;
+                  gateGain.gain.setTargetAtTime(1.15, ctx.currentTime, 0.008);
+                }
+              }
+            }
+            requestAnimationFrame(checkNoiseGate);
+          };
+          requestAnimationFrame(checkNoiseGate);
 
           // Gain Nodes for A/B Bypass vs Processed
           const bypassGain = ctx.createGain();
           const effectGain = ctx.createGain();
 
-          // Bypass path: source -> bypassGain -> destination
+          // Bypass path
           source.connect(bypassGain);
           bypassGain.connect(ctx.destination);
 
-          // Processed path: source -> highPass -> vocalPresence -> lowPass -> compressor -> effectGain -> destination
-          source.connect(highPass);
-          highPass.connect(vocalPresence);
-          vocalPresence.connect(lowPass);
-          lowPass.connect(compressor);
-          compressor.connect(effectGain);
+          // Processed path with Studio Noise Gate
+          source.connect(highPass1);
+          highPass1.connect(highPass2);
+          highPass2.connect(notch50);
+          notch50.connect(notch60);
+          notch60.connect(lowPass1);
+          lowPass1.connect(lowPass2);
+          lowPass2.connect(vocalPresence);
+          vocalPresence.connect(vocalWarmth);
+          vocalWarmth.connect(compressor);
+          compressor.connect(gateGain);
+          gateGain.connect(analyser);
+          analyser.connect(effectGain);
           effectGain.connect(ctx.destination);
 
           // Initial gains based on speechEnhance
@@ -202,7 +282,7 @@ export default function App() {
           }
 
           audioContextRef.current = ctx;
-          audioNodesRef.current = { bypassGain, effectGain, ctx };
+          audioNodesRef.current = { bypassGain, effectGain, ctx, gateGain };
         }
       } catch (err) {
         console.warn("Web Audio API setup notice:", err);
@@ -228,6 +308,42 @@ export default function App() {
       }
     }
   }, [speechEnhance]);
+
+  // 🎵 Đồng bộ phát / dừng / âm lượng Nhạc nền (BGM) với Video
+  useEffect(() => {
+    const bgmAudio = bgmAudioRef.current;
+    if (!bgmAudio) return;
+
+    if (!selectedBgm || selectedBgm === 'none') {
+      bgmAudio.pause();
+      return;
+    }
+
+    const trackUrls = {
+      lofi: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=lofi-study-112191.mp3',
+      cinematic: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3?filename=inspiring-cinematic-ambient-116199.mp3',
+      energetic: 'https://cdn.pixabay.com/download/audio/2022/10/14/audio_9939f792cb.mp3?filename=electronic-future-beats-117997.mp3'
+    };
+
+    const custom = customBgmList.find(c => c.id === selectedBgm);
+    const audioUrl = custom?.url || trackUrls[selectedBgm];
+
+    if (audioUrl) {
+      if (bgmAudio.src !== audioUrl) {
+        bgmAudio.src = audioUrl;
+        bgmAudio.loop = true;
+      }
+      bgmAudio.volume = Math.max(0, Math.min(1, (bgmVolume / 100) * 0.4));
+
+      if (isPlaying) {
+        bgmAudio.play().catch(() => {});
+      } else {
+        bgmAudio.pause();
+      }
+    } else {
+      bgmAudio.pause();
+    }
+  }, [selectedBgm, isPlaying, bgmVolume, customBgmList]);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -1226,6 +1342,12 @@ export default function App() {
                 setBrandConfig={setBrandConfig}
                 titleConfig={titleConfig}
                 setTitleConfig={setTitleConfig}
+                selectedBgm={selectedBgm}
+                setSelectedBgm={setSelectedBgm}
+                bgmVolume={bgmVolume}
+                setBgmVolume={setBgmVolume}
+                customBgmList={customBgmList}
+                setCustomBgmList={setCustomBgmList}
                 onRemoveAllFillers={handleRemoveAllFillers}
                 onRemoveAllPauses={handleRemoveAllPauses}
                 pauseThreshold={pauseThreshold}
@@ -1259,6 +1381,9 @@ export default function App() {
             isPlaying={isPlaying}
             onTogglePlay={handleTogglePlay}
             totalDuration={data?.transcript?.duration || 142.17}
+            titleConfig={titleConfig}
+            onUpdateTitleConfig={setTitleConfig}
+            customTitle={customTitle}
             brolls={brolls}
             soundFxMarkers={soundFxMarkers}
             textLayers={textLayers}

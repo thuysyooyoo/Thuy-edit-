@@ -109,14 +109,14 @@ def render_hd_vertical_clip(
         keywords_timestamps=keywords_times
     )
 
-    # 4. Assemble FFmpeg Command
-    vf_string = f"{crop_filter},scale=1080:1920:flags=lanczos,subtitles='{escaped_ass_path}'"
+    # 4. Assemble FFmpeg Command (Fast Seeking & High Speed Multi-threaded Encoding)
+    vf_string = f"{crop_filter},scale=1080:1920:flags=bicubic,subtitles='{escaped_ass_path}'"
 
     cmd = [
         FFMPEG_PATH, "-y",
         "-ss", str(start_time),
-        "-i", input_path,
-        "-t", str(duration)
+        "-t", str(duration),
+        "-i", input_path
     ]
 
     fx_files = audio_fx_data.get("fx_files", [])
@@ -132,7 +132,7 @@ def render_hd_vertical_clip(
             filter_parts.append(f"[{idx+1}:a]adelay={delay}|{delay},volume=0.75[{label}]")
             amix_inputs += f"[{label}]"
 
-        filter_parts.append(f"{amix_inputs}amix=inputs={len(fx_files)+1}:duration=first:dropout_transition=2[out_a]")
+        filter_parts.append(f"{amix_inputs}amix=inputs={len(fx_files)+1}:duration=first:dropout_transition=1[out_a]")
         full_filter_complex = ";".join(filter_parts)
         
         cmd.extend([
@@ -141,11 +141,10 @@ def render_hd_vertical_clip(
             "-map", "0:v",
             "-map", "[out_a]",
             "-c:v", "libx264",
-            "-preset", "veryfast",
-            "-crf", "20",
-            "-b:v", "5000k",
-            "-maxrate", "7000k",
-            "-bufsize", "10000k",
+            "-preset", "ultrafast",
+            "-tune", "fastdecode",
+            "-threads", "0",
+            "-crf", "18",
             "-c:a", "aac",
             "-b:a", "192k",
             "-pix_fmt", "yuv420p",
@@ -155,19 +154,18 @@ def render_hd_vertical_clip(
         cmd.extend([
             "-vf", vf_string,
             "-c:v", "libx264",
-            "-preset", "veryfast",
-            "-crf", "20",
-            "-b:v", "5000k",
-            "-maxrate", "7000k",
-            "-bufsize", "10000k",
+            "-preset", "ultrafast",
+            "-tune", "fastdecode",
+            "-threads", "0",
+            "-crf", "18",
             "-c:a", "aac",
             "-b:a", "192k",
             "-pix_fmt", "yuv420p",
             output_path
         ])
 
-    print("Running HD Vertical Render Pipeline...")
-    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    print("Running Ultra-Fast HD Vertical Render Pipeline...")
+    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=180)
     if res.returncode != 0:
         err_msg = res.stderr.decode("utf-8", errors="ignore")
         print("FFmpeg Error:", err_msg)

@@ -48,41 +48,36 @@ class FaceTracker:
         default_center_x = orig_width / 2.0
         current_center_x = default_center_x
 
-        start_frame = int(start_time * video_fps)
-        end_frame = int(end_time * video_fps)
-        step_frame = max(1, int(video_fps / sample_fps))
-
-        cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
-        curr_frame_idx = start_frame
+        # Sample frames efficiently across the clip range (8-12 points max)
+        sample_count = min(12, max(4, int((end_time - start_time) * 1.5)))
+        sample_times = np.linspace(start_time, max(start_time + 0.5, end_time), num=sample_count)
 
         centers = []
 
-        while curr_frame_idx <= end_frame:
+        for t in sample_times:
+            cap.set(cv2.CAP_PROP_POS_MSEC, float(t * 1000.0))
             ret, frame = cap.read()
-            if not ret:
-                break
+            if not ret or frame is None:
+                continue
 
-            if (curr_frame_idx - start_frame) % step_frame == 0:
-                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                small_gray = cv2.resize(gray, (0, 0), fx=0.5, fy=0.5)
-                faces = self.face_cascade.detectMultiScale(
-                    small_gray, 
-                    scaleFactor=1.15, 
-                    minNeighbors=4, 
-                    minSize=(30, 30)
-                )
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            small_gray = cv2.resize(gray, (0, 0), fx=0.35, fy=0.35)
+            faces = self.face_cascade.detectMultiScale(
+                small_gray, 
+                scaleFactor=1.2, 
+                minNeighbors=3, 
+                minSize=(25, 25)
+            )
 
-                if len(faces) > 0:
-                    largest_face = max(faces, key=lambda f: f[2] * f[3])
-                    fx, fy, fw, fh = [v * 2 for v in largest_face]
-                    detected_center_x = fx + (fw / 2.0)
-                    current_center_x = (smoothing_factor * detected_center_x) + ((1.0 - smoothing_factor) * current_center_x)
-                else:
-                    current_center_x = (0.05 * default_center_x) + (0.95 * current_center_x)
+            if len(faces) > 0:
+                largest_face = max(faces, key=lambda f: f[2] * f[3])
+                fx, fy, fw, fh = [v / 0.35 for v in largest_face]
+                detected_center_x = fx + (fw / 2.0)
+                current_center_x = (smoothing_factor * detected_center_x) + ((1.0 - smoothing_factor) * current_center_x)
+            else:
+                current_center_x = (0.05 * default_center_x) + (0.95 * current_center_x)
 
-                centers.append(current_center_x)
-
-            curr_frame_idx += 1
+            centers.append(current_center_x)
 
         cap.release()
 
