@@ -45,11 +45,11 @@ export default function OpusCanvasPreview({
   aiEmoji = false,
   autoCensor = false,
   speakerColors = true,
-  brandConfig = { showLogo: true, logoUrl: null, logoText: 'OPUS STUDIO', logoSize: 65, logoOpacity: 90, pos: { x: 82, y: 6 } },
+  brandConfig = { showLogo: true, logoUrl: null, logoText: 'OPUS STUDIO', logoSize: 65, logoWidth: 80, logoHeight: 35, logoOpacity: 90, pos: { x: 82, y: 6 } },
   onUpdateBrandConfig,
-  titleConfig = { visible: true, style: 'pill_white', scale: 100, pos: { x: 50, y: 10 } },
+  titleConfig = { visible: true, style: 'pill_white', scale: 100, scaleX: 100, scaleY: 100, pos: { x: 50, y: 10 } },
   onUpdateTitleConfig,
-  captionConfig = { visible: true, scale: 100, pos: { x: 50, y: 84 } },
+  captionConfig = { visible: true, scale: 100, scaleX: 100, scaleY: 100, pos: { x: 50, y: 84 } },
   onUpdateCaptionConfig,
   captionPos = { x: 50, y: 84 },
   onUpdateCaptionPos,
@@ -80,7 +80,7 @@ export default function OpusCanvasPreview({
   const lastTriggeredSceneTransitionRef = useRef(null);
   const canvasContainerRef = useRef(null);
 
-  // Drag & Resize states
+  // Drag & Multi-Directional Resize states
   const [activeDragging, setActiveDragging] = useState(null);
   const [activeResizing, setActiveResizing] = useState(null);
 
@@ -99,25 +99,29 @@ export default function OpusCanvasPreview({
     });
   };
 
-  // Start Resize / Scale Handle
-  const startResizing = (e, type, id = null, currentScale, currentSize) => {
+  // Start Multi-directional Resize Handle (Kéo ngang, kéo dọc, kéo 4 góc)
+  const startResizing = (e, type, id = null, mode = 'corner_br', metrics = {}) => {
     e.stopPropagation();
     e.preventDefault();
     setSelectedElement({ type, id });
     setActiveResizing({
       type,
       id,
+      mode,
       startMouseX: e.clientX,
       startMouseY: e.clientY,
-      startScale: currentScale || 100,
-      startSize: currentSize || 65,
-      startFontSize: fontStyle?.fontSize || 40
+      startScale: metrics.scale ?? 100,
+      startScaleX: metrics.scaleX ?? 100,
+      startScaleY: metrics.scaleY ?? 100,
+      startWidth: metrics.logoWidth ?? metrics.width ?? 80,
+      startHeight: metrics.logoHeight ?? metrics.height ?? 35,
+      startFontSize: fontStyle?.fontSize ?? 40
     });
   };
 
   useEffect(() => {
     const handleMouseMove = (e) => {
-      // DRAGGING
+      // 1. DRAGGING POSITION
       if (activeDragging && canvasContainerRef.current) {
         const rect = canvasContainerRef.current.getBoundingClientRect();
         const deltaXPct = ((e.clientX - activeDragging.startMouseX) / rect.width) * 100;
@@ -137,26 +141,71 @@ export default function OpusCanvasPreview({
         }
       }
 
-      // RESIZING
+      // 2. MULTI-DIRECTIONAL RESIZING & STRETCHING (KÉO NGANG, KÉO DỌC, KÉO GÓC)
       if (activeResizing && canvasContainerRef.current) {
-        const delta = (e.clientX - activeResizing.startMouseX) + (e.clientY - activeResizing.startMouseY);
+        const deltaX = e.clientX - activeResizing.startMouseX;
+        const deltaY = e.clientY - activeResizing.startMouseY;
+        const mode = activeResizing.mode;
 
-        if (activeResizing.type === 'title' && onUpdateTitleConfig) {
-          const newScale = Math.max(50, Math.min(250, Math.round(activeResizing.startScale + delta * 0.6)));
-          onUpdateTitleConfig(prev => ({ ...prev, scale: newScale }));
-        } else if (activeResizing.type === 'caption') {
-          const newScale = Math.max(50, Math.min(250, Math.round(activeResizing.startScale + delta * 0.6)));
-          if (onUpdateCaptionConfig) onUpdateCaptionConfig(prev => ({ ...prev, scale: newScale }));
-          if (setFontStyle) {
-            const newFontSize = Math.max(18, Math.min(80, Math.round(activeResizing.startFontSize + delta * 0.2)));
-            setFontStyle(prev => ({ ...prev, fontSize: newFontSize }));
+        // ── A. KÉO DÃN / THU HẸP CHIỀU NGANG (HORIZONTAL STRETCH) ──
+        if (mode === 'horizontal_right' || mode === 'horizontal_left') {
+          const factor = mode === 'horizontal_left' ? -1 : 1;
+          const newScaleX = Math.max(30, Math.min(350, Math.round(activeResizing.startScaleX + deltaX * factor * 0.8)));
+
+          if (activeResizing.type === 'title' && onUpdateTitleConfig) {
+            onUpdateTitleConfig(prev => ({ ...prev, scaleX: newScaleX }));
+          } else if (activeResizing.type === 'caption' && onUpdateCaptionConfig) {
+            onUpdateCaptionConfig(prev => ({ ...prev, scaleX: newScaleX }));
+          } else if (activeResizing.type === 'logo' && onUpdateBrandConfig) {
+            const newWidth = Math.max(20, Math.min(280, Math.round(activeResizing.startWidth + deltaX * factor * 0.8)));
+            onUpdateBrandConfig(prev => ({ ...prev, logoWidth: newWidth, logoSize: newWidth }));
+          } else if (activeResizing.type === 'textLayer' && onUpdateTextLayer) {
+            onUpdateTextLayer(activeResizing.id, { scaleX: newScaleX });
           }
-        } else if (activeResizing.type === 'logo' && onUpdateBrandConfig) {
-          const newSize = Math.max(25, Math.min(200, Math.round(activeResizing.startSize + delta * 0.5)));
-          onUpdateBrandConfig(prev => ({ ...prev, logoSize: newSize }));
-        } else if (activeResizing.type === 'textLayer' && onUpdateTextLayer) {
-          const newScale = Math.max(50, Math.min(250, Math.round(activeResizing.startScale + delta * 0.6)));
-          onUpdateTextLayer(activeResizing.id, { scale: newScale });
+        }
+        
+        // ── B. KÉO DÃN / THU HẸP CHIỀU DỌC (VERTICAL STRETCH) ──
+        else if (mode === 'vertical_bottom' || mode === 'vertical_top') {
+          const factor = mode === 'vertical_top' ? -1 : 1;
+          const newScaleY = Math.max(30, Math.min(350, Math.round(activeResizing.startScaleY + deltaY * factor * 0.8)));
+
+          if (activeResizing.type === 'title' && onUpdateTitleConfig) {
+            onUpdateTitleConfig(prev => ({ ...prev, scaleY: newScaleY }));
+          } else if (activeResizing.type === 'caption' && onUpdateCaptionConfig) {
+            onUpdateCaptionConfig(prev => ({ ...prev, scaleY: newScaleY }));
+          } else if (activeResizing.type === 'logo' && onUpdateBrandConfig) {
+            const newHeight = Math.max(15, Math.min(220, Math.round(activeResizing.startHeight + deltaY * factor * 0.8)));
+            onUpdateBrandConfig(prev => ({ ...prev, logoHeight: newHeight }));
+          } else if (activeResizing.type === 'textLayer' && onUpdateTextLayer) {
+            onUpdateTextLayer(activeResizing.id, { scaleY: newScaleY });
+          }
+        }
+
+        // ── C. KÉO GÓC ĐỒNG TỶ LỆ (CORNER UNIFORM ZOOM) ──
+        else {
+          const delta = (mode === 'corner_tl' ? (-deltaX - deltaY) :
+                         mode === 'corner_tr' ? (deltaX - deltaY) :
+                         mode === 'corner_bl' ? (-deltaX + deltaY) :
+                         (deltaX + deltaY)) * 0.5;
+
+          const newScale = Math.max(40, Math.min(300, Math.round(activeResizing.startScale + delta * 0.6)));
+          const newScaleX = Math.max(40, Math.min(300, Math.round(activeResizing.startScaleX + delta * 0.6)));
+          const newScaleY = Math.max(40, Math.min(300, Math.round(activeResizing.startScaleY + delta * 0.6)));
+
+          if (activeResizing.type === 'title' && onUpdateTitleConfig) {
+            onUpdateTitleConfig(prev => ({ ...prev, scale: newScale, scaleX: newScaleX, scaleY: newScaleY }));
+          } else if (activeResizing.type === 'caption') {
+            if (onUpdateCaptionConfig) onUpdateCaptionConfig(prev => ({ ...prev, scale: newScale, scaleX: newScaleX, scaleY: newScaleY }));
+            if (setFontStyle) {
+              const newFontSize = Math.max(18, Math.min(80, Math.round(activeResizing.startFontSize + delta * 0.2)));
+              setFontStyle(prev => ({ ...prev, fontSize: newFontSize }));
+            }
+          } else if (activeResizing.type === 'logo' && onUpdateBrandConfig) {
+            const newSize = Math.max(25, Math.min(200, Math.round(activeResizing.startScale + delta * 0.5)));
+            onUpdateBrandConfig(prev => ({ ...prev, logoSize: newSize, logoWidth: newSize * 1.3, logoHeight: newSize * 0.6 }));
+          } else if (activeResizing.type === 'textLayer' && onUpdateTextLayer) {
+            onUpdateTextLayer(activeResizing.id, { scale: newScale, scaleX: newScaleX, scaleY: newScaleY });
+          }
         }
       }
     };
@@ -240,18 +289,6 @@ export default function OpusCanvasPreview({
     setEditingPhraseModal(null);
   };
 
-  // Emojis dictionary for AI Emoji feature
-  const getWordEmoji = (word) => {
-    const clean = word.toLowerCase().replace(/[.,!?\"']/g, '');
-    const emojiMap = {
-      'tiền': '💵', 'triệu': '💰', 'tỷ': '💎', 'doanh': '📈', 'thu': '📊',
-      'xe': '🚗', 'nhà': '🏡', 'ăn': '🍕', 'uống': '🥤', 'ngủ': '😴',
-      'yêu': '❤️', 'thích': '🔥', 'hot': '⚡', 'viral': '🚀', 'cảnh': '⚠️',
-      'bí': '🤫', 'quyết': '🔑', 'mẹo': '💡', 'nguy': '🚨', 'thành': '🏆'
-    };
-    return emojiMap[clean] || null;
-  };
-
   const activeBroll = brolls.find(b => currentTime >= b.start && currentTime <= b.end);
 
   // Sync B-Roll video with main player
@@ -269,51 +306,135 @@ export default function OpusCanvasPreview({
     }
   }, [currentTime, isPlaying, activeBroll]);
 
+  // ── RENDER 8-DIRECTIONAL TRANSFORM HANDLES (KHUNG VIỀN & 8 NÚM KÉO NGANG / DỌC / GÓC) ──
+  const renderTransformBox = (type, id, metrics) => {
+    const isSelected = selectedElement?.type === type && selectedElement?.id === id;
+    if (!isSelected) return null;
+
+    return (
+      <div className="absolute -inset-2 pointer-events-none z-40">
+        {/* Bounding Line */}
+        <div className="w-full h-full border-2 border-indigo-400/90 rounded-xl shadow-[0_0_15px_rgba(99,102,241,0.5)]" />
+
+        {/* 1. Left Edge Handle (Kéo dãn ngang trái) */}
+        <div
+          onMouseDown={(e) => startResizing(e, type, id, 'horizontal_left', metrics)}
+          className="pointer-events-auto absolute top-1/2 -left-2 -translate-y-1/2 w-3 h-7 bg-white hover:bg-indigo-400 border border-indigo-700 rounded-full cursor-ew-resize z-50 shadow-lg hover:scale-125 transition-transform flex items-center justify-center"
+          title="Kéo sang trái/phải để dãn rộng ngang"
+        >
+          <div className="w-0.5 h-3.5 bg-indigo-900 rounded" />
+        </div>
+
+        {/* 2. Right Edge Handle (Kéo dãn ngang phải) */}
+        <div
+          onMouseDown={(e) => startResizing(e, type, id, 'horizontal_right', metrics)}
+          className="pointer-events-auto absolute top-1/2 -right-2 -translate-y-1/2 w-3 h-7 bg-white hover:bg-indigo-400 border border-indigo-700 rounded-full cursor-ew-resize z-50 shadow-lg hover:scale-125 transition-transform flex items-center justify-center"
+          title="Kéo sang trái/phải để dãn rộng ngang"
+        >
+          <div className="w-0.5 h-3.5 bg-indigo-900 rounded" />
+        </div>
+
+        {/* 3. Top Edge Handle (Kéo dãn dọc trên) */}
+        <div
+          onMouseDown={(e) => startResizing(e, type, id, 'vertical_top', metrics)}
+          className="pointer-events-auto absolute -top-2 left-1/2 -translate-x-1/2 w-7 h-3 bg-white hover:bg-indigo-400 border border-indigo-700 rounded-full cursor-ns-resize z-50 shadow-lg hover:scale-125 transition-transform flex items-center justify-center"
+          title="Kéo lên/xuống để dãn cao dọc"
+        >
+          <div className="h-0.5 w-3.5 bg-indigo-900 rounded" />
+        </div>
+
+        {/* 4. Bottom Edge Handle (Kéo dãn dọc dưới) */}
+        <div
+          onMouseDown={(e) => startResizing(e, type, id, 'vertical_bottom', metrics)}
+          className="pointer-events-auto absolute -bottom-2 left-1/2 -translate-x-1/2 w-7 h-3 bg-white hover:bg-indigo-400 border border-indigo-700 rounded-full cursor-ns-resize z-50 shadow-lg hover:scale-125 transition-transform flex items-center justify-center"
+          title="Kéo lên/xuống để dãn cao dọc"
+        >
+          <div className="h-0.5 w-3.5 bg-indigo-900 rounded" />
+        </div>
+
+        {/* 5. 4 Corner Handles (Kéo góc đồng tỷ lệ Zoom) */}
+        <div
+          onMouseDown={(e) => startResizing(e, type, id, 'corner_tl', metrics)}
+          className="pointer-events-auto absolute -top-2 -left-2 w-4 h-4 bg-white hover:bg-indigo-400 border-2 border-indigo-700 rounded-sm cursor-nwse-resize z-50 shadow-md hover:scale-125 transition-transform"
+          title="Kéo góc để zoom to nhỏ đồng thời"
+        />
+        <div
+          onMouseDown={(e) => startResizing(e, type, id, 'corner_tr', metrics)}
+          className="pointer-events-auto absolute -top-2 -right-2 w-4 h-4 bg-white hover:bg-indigo-400 border-2 border-indigo-700 rounded-sm cursor-nesw-resize z-50 shadow-md hover:scale-125 transition-transform"
+          title="Kéo góc để zoom to nhỏ đồng thời"
+        />
+        <div
+          onMouseDown={(e) => startResizing(e, type, id, 'corner_bl', metrics)}
+          className="pointer-events-auto absolute -bottom-2 -left-2 w-4 h-4 bg-white hover:bg-indigo-400 border-2 border-indigo-700 rounded-sm cursor-nesw-resize z-50 shadow-md hover:scale-125 transition-transform"
+          title="Kéo góc để zoom to nhỏ đồng thời"
+        />
+        <div
+          onMouseDown={(e) => startResizing(e, type, id, 'corner_br', metrics)}
+          className="pointer-events-auto absolute -bottom-2 -right-2 w-4 h-4 bg-white hover:bg-indigo-400 border-2 border-indigo-700 rounded-sm cursor-nwse-resize z-50 shadow-md hover:scale-125 transition-transform"
+          title="Kéo góc để zoom to nhỏ đồng thời"
+        />
+      </div>
+    );
+  };
+
   // Render floating action toolbar for selected canvas element
-  const renderElementToolbar = (type, id, onZoomIn, onZoomOut, onEdit, onDelete, label = '') => {
+  const renderElementToolbar = (type, id, onZoomIn, onZoomOut, onStretchX, onStretchY, onEdit, onDelete, label = '') => {
     return (
       <div 
         onClick={(e) => e.stopPropagation()}
-        className="absolute -top-9 left-1/2 -translate-x-1/2 z-40 bg-[#121422]/95 border border-[#333852] rounded-xl shadow-2xl p-1 flex items-center gap-1 backdrop-blur-md animate-fade-in text-[10px]"
+        className="absolute -top-11 left-1/2 -translate-x-1/2 z-50 bg-[#121422]/95 border border-[#333852] rounded-xl shadow-2xl p-1 flex items-center gap-1.5 backdrop-blur-md animate-fade-in text-[10px]"
       >
-        <span className="text-[9px] font-bold text-slate-300 px-1.5 font-mono uppercase truncate max-w-[80px]">
+        <span className="text-[9px] font-bold text-indigo-300 px-1 font-mono uppercase truncate max-w-[80px]">
           {label}
         </span>
-        <div className="w-[1px] h-3 bg-white/20" />
+        <div className="w-[1px] h-3.5 bg-white/20" />
         
-        {/* Zoom Out */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onZoomOut && onZoomOut();
-          }}
-          title="Thu nhỏ kích thước"
-          className="w-5 h-5 rounded-lg bg-[#202438] hover:bg-[#2c324e] text-slate-200 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
-        >
-          <Minus className="w-3 h-3" />
-        </button>
+        {/* Zoom Controls */}
+        <div className="flex items-center gap-0.5 bg-[#1a1d2e] p-0.5 rounded-lg border border-[#2b3049]">
+          <button
+            onClick={(e) => { e.stopPropagation(); onZoomOut && onZoomOut(); }}
+            title="Thu nhỏ kích thước"
+            className="w-5 h-5 rounded bg-[#22273d] hover:bg-[#2e3452] text-slate-200 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+          >
+            <Minus className="w-3 h-3" />
+          </button>
+          <span className="text-[9px] font-mono px-1 text-slate-300">Zoom</span>
+          <button
+            onClick={(e) => { e.stopPropagation(); onZoomIn && onZoomIn(); }}
+            title="Phóng to kích thước"
+            className="w-5 h-5 rounded bg-[#22273d] hover:bg-[#2e3452] text-slate-200 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+          >
+            <Plus className="w-3 h-3" />
+          </button>
+        </div>
 
-        {/* Zoom In */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onZoomIn && onZoomIn();
-          }}
-          title="Phóng to kích thước"
-          className="w-5 h-5 rounded-lg bg-[#202438] hover:bg-[#2c324e] text-slate-200 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
-        >
-          <Plus className="w-3 h-3" />
-        </button>
+        {/* Horizontal & Vertical Stretch Shortcuts */}
+        {onStretchX && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onStretchX(); }}
+            title="Dãn rộng chiều ngang (Width +15%)"
+            className="px-1.5 h-5 rounded bg-[#1e2338] hover:bg-indigo-600/60 text-slate-200 font-mono font-bold flex items-center gap-0.5 transition-all"
+          >
+            ↔ Ngang
+          </button>
+        )}
+
+        {onStretchY && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onStretchY(); }}
+            title="Dãn cao chiều dọc (Height +15%)"
+            className="px-1.5 h-5 rounded bg-[#1e2338] hover:bg-indigo-600/60 text-slate-200 font-mono font-bold flex items-center gap-0.5 transition-all"
+          >
+            ↕ Dọc
+          </button>
+        )}
 
         {/* Edit */}
         {onEdit && (
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit();
-            }}
+            onClick={(e) => { e.stopPropagation(); onEdit(); }}
             title="Chỉnh sửa nội dung / kiểu dáng"
-            className="px-1.5 h-5 rounded-lg bg-indigo-600/80 hover:bg-indigo-600 text-white font-bold flex items-center gap-0.5 transition-all hover:scale-105"
+            className="px-2 h-5 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-bold flex items-center gap-1 transition-all hover:scale-105"
           >
             <Edit3 className="w-2.5 h-2.5" />
             <span>Sửa</span>
@@ -323,12 +444,9 @@ export default function OpusCanvasPreview({
         {/* Delete */}
         {onDelete && (
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
             title="Xóa / Ẩn phần tử này"
-            className="w-5 h-5 rounded-lg bg-rose-600/80 hover:bg-rose-600 text-white flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+            className="w-5 h-5 rounded bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center transition-all hover:scale-110 active:scale-95"
           >
             <Trash2 className="w-3 h-3" />
           </button>
@@ -459,7 +577,7 @@ export default function OpusCanvasPreview({
           )}
         </div>
 
-        {/* ── 2. B-ROLL VISUAL OVERLAYS (RENDERED BEHIND OR IN FRONT BASED ON STYLE) ── */}
+        {/* ── 2. B-ROLL VISUAL OVERLAYS ── */}
         {activeBroll && (
           <div 
             onClick={(e) => {
@@ -500,7 +618,7 @@ export default function OpusCanvasPreview({
           </div>
         )}
 
-        {/* ── SOFT AMBIENT GRADIENT FEATHERING BLEND SEAMS (CHO PHONG CÁCH 50:50 & 30:70) ── */}
+        {/* ── SOFT AMBIENT GRADIENT FEATHERING BLEND SEAMS ── */}
         {activeBroll && (activeBroll.style === 'split_50_50_top' || activeBroll.style === 'split_50_50_bottom') && (
           <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-16 pointer-events-none z-25 overflow-hidden flex items-center justify-center">
             <div className="w-full h-full bg-gradient-to-b from-transparent via-black/85 to-transparent backdrop-blur-[1.5px]" />
@@ -557,14 +675,14 @@ export default function OpusCanvasPreview({
         )}
 
         {/* ═════════════════════════════════════════════════════════════════════════════════
-            1. BRAND LOGO / WATERMARK OVERLAY (DI CHUYỂN, ZOOM TO NHỎ, SỬA & XÓA)
+            1. BRAND LOGO / WATERMARK OVERLAY (KÉO NGANG, KÉO DỌC, ZOOM GÓC, SỬA & XÓA)
            ═════════════════════════════════════════════════════════════════════════════════ */}
         {brandConfig?.showLogo && (
           <div 
             style={{ 
               top: `${brandConfig.pos?.y ?? 6}%`, 
               left: `${brandConfig.pos?.x ?? 82}%`,
-              transform: 'translate(-50%, -50%)',
+              transform: `translate(-50%, -50%) scale(${(brandConfig.scaleX ?? 100) / 100}, ${(brandConfig.scaleY ?? 100) / 100})`,
               opacity: (brandConfig.logoOpacity ?? 90) / 100 
             }}
             onMouseDown={(e) => startDragging(e, 'logo', null, brandConfig.pos || { x: 82, y: 6 })}
@@ -572,17 +690,17 @@ export default function OpusCanvasPreview({
               e.stopPropagation();
               setSelectedElement({ type: 'logo', id: null });
             }}
-            className={`absolute z-35 cursor-move group select-none transition-shadow ${
-              selectedElement?.type === 'logo' ? 'ring-2 ring-indigo-400 ring-offset-2 ring-offset-black rounded-xl' : ''
-            }`}
-            title="Kéo di chuyển, kéo góc dưới phải để zoom to nhỏ"
+            className="absolute z-35 cursor-move group select-none transition-shadow"
+            title="Kéo di chuyển, kéo các cạnh để dãn ngang/dọc, kéo góc để zoom"
           >
             {/* Quick Action Toolbar */}
             {selectedElement?.type === 'logo' && renderElementToolbar(
               'logo',
               null,
-              () => onUpdateBrandConfig && onUpdateBrandConfig(prev => ({ ...prev, logoSize: Math.min(200, (prev.logoSize || 65) + 8) })),
-              () => onUpdateBrandConfig && onUpdateBrandConfig(prev => ({ ...prev, logoSize: Math.max(25, (prev.logoSize || 65) - 8) })),
+              () => onUpdateBrandConfig && onUpdateBrandConfig(prev => ({ ...prev, logoSize: Math.min(200, (prev.logoSize || 65) + 10) })),
+              () => onUpdateBrandConfig && onUpdateBrandConfig(prev => ({ ...prev, logoSize: Math.max(25, (prev.logoSize || 65) - 10) })),
+              () => onUpdateBrandConfig && onUpdateBrandConfig(prev => ({ ...prev, scaleX: Math.min(300, (prev.scaleX || 100) + 15) })),
+              () => onUpdateBrandConfig && onUpdateBrandConfig(prev => ({ ...prev, scaleY: Math.min(300, (prev.scaleY || 100) + 15) })),
               () => onSelectElementToCustomize && onSelectElementToCustomize('brand'),
               () => onUpdateBrandConfig && onUpdateBrandConfig(prev => ({ ...prev, showLogo: false })),
               'Logo'
@@ -593,38 +711,39 @@ export default function OpusCanvasPreview({
                 <img 
                   src={brandConfig.logoUrl} 
                   alt="Brand Logo" 
-                  style={{ width: `${brandConfig.logoSize || 65}px` }}
+                  style={{ 
+                    width: `${brandConfig.logoWidth || brandConfig.logoSize || 65}px`,
+                    height: brandConfig.logoHeight ? `${brandConfig.logoHeight}px` : 'auto'
+                  }}
                   className="object-contain drop-shadow-md pointer-events-none"
                 />
               ) : (
                 <div 
-                  style={{ fontSize: `${Math.round((brandConfig.logoSize || 65) * 0.16)}px` }}
-                  className="px-2.5 py-1 rounded-md bg-black/75 border border-white/25 text-white font-black tracking-wider uppercase backdrop-blur-xs shadow-md"
+                  style={{ 
+                    fontSize: `${Math.round((brandConfig.logoSize || 65) * 0.16)}px`,
+                    width: brandConfig.logoWidth ? `${brandConfig.logoWidth}px` : 'auto'
+                  }}
+                  className="px-2.5 py-1 rounded-md bg-black/75 border border-white/25 text-white font-black tracking-wider uppercase backdrop-blur-xs shadow-md text-center"
                 >
                   {brandConfig?.logoText || 'OPUS STUDIO'}
                 </div>
               )}
 
-              {/* Corner Resize Handle */}
-              <div
-                onMouseDown={(e) => startResizing(e, 'logo', null, 100, brandConfig.logoSize || 65)}
-                className="absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full bg-indigo-500 text-white flex items-center justify-center cursor-nwse-resize shadow-md hover:scale-125 transition-transform"
-                title="Kéo góc để phóng to / thu nhỏ Logo"
-              >
-                <Maximize2 className="w-2.5 h-2.5" />
-              </div>
+              {/* 8-Directional Transform Handles */}
+              {renderTransformBox('logo', null, brandConfig)}
             </div>
           </div>
         )}
 
         {/* ═════════════════════════════════════════════════════════════════════════════════
-            2. CUSTOM TEXT STICKERS (DI CHUYỂN, ZOOM TO NHỎ, SỬA & XÓA)
+            2. CUSTOM TEXT STICKERS (KÉO NGANG, KÉO DỌC, ZOOM GÓC, SỬA & XÓA)
            ═════════════════════════════════════════════════════════════════════════════════ */}
         {textLayers.map((tl, i) => {
-          const textObj = typeof tl === 'string' ? { id: `tl_${i}`, text: tl, style: 'header', scale: 100, pos: { x: 50, y: 60 + i * 8 } } : tl;
+          const textObj = typeof tl === 'string' ? { id: `tl_${i}`, text: tl, style: 'header', scale: 100, scaleX: 100, scaleY: 100, pos: { x: 50, y: 60 + i * 8 } } : tl;
           const currentPos = textObj.pos || { x: 50, y: 60 + i * 8 };
-          const currentScale = textObj.scale || 100;
-          const isSelected = selectedElement?.type === 'textLayer' && selectedElement?.id === textObj.id;
+          const scale = textObj.scale ?? 100;
+          const scaleX = ((textObj.scaleX ?? 100) * scale) / 10000;
+          const scaleY = ((textObj.scaleY ?? 100) * scale) / 10000;
 
           return (
             <div 
@@ -632,24 +751,24 @@ export default function OpusCanvasPreview({
               style={{
                 top: `${currentPos.y}%`,
                 left: `${currentPos.x}%`,
-                transform: `translate(-50%, -50%) scale(${currentScale / 100})`
+                transform: `translate(-50%, -50%) scale(${scaleX}, ${scaleY})`
               }}
               onMouseDown={(e) => startDragging(e, 'textLayer', textObj.id, currentPos)}
               onClick={(e) => {
                 e.stopPropagation();
                 setSelectedElement({ type: 'textLayer', id: textObj.id });
               }}
-              className={`absolute z-35 cursor-move group select-none text-center ${
-                isSelected ? 'ring-2 ring-indigo-400 ring-offset-2 ring-offset-black rounded-xl' : ''
-              }`}
-              title="Kéo di chuyển, kéo góc dưới phải để zoom to nhỏ"
+              className="absolute z-35 cursor-move group select-none text-center"
+              title="Kéo di chuyển, kéo các cạnh để dãn ngang/dọc, kéo góc để zoom"
             >
               {/* Quick Action Toolbar */}
-              {isSelected && renderElementToolbar(
+              {selectedElement?.type === 'textLayer' && selectedElement?.id === textObj.id && renderElementToolbar(
                 'textLayer',
                 textObj.id,
-                () => onUpdateTextLayer && onUpdateTextLayer(textObj.id, { scale: Math.min(250, currentScale + 15) }),
-                () => onUpdateTextLayer && onUpdateTextLayer(textObj.id, { scale: Math.max(50, currentScale - 15) }),
+                () => onUpdateTextLayer && onUpdateTextLayer(textObj.id, { scale: Math.min(300, (textObj.scale || 100) + 15) }),
+                () => onUpdateTextLayer && onUpdateTextLayer(textObj.id, { scale: Math.max(40, (textObj.scale || 100) - 15) }),
+                () => onUpdateTextLayer && onUpdateTextLayer(textObj.id, { scaleX: Math.min(350, (textObj.scaleX || 100) + 20) }),
+                () => onUpdateTextLayer && onUpdateTextLayer(textObj.id, { scaleY: Math.min(350, (textObj.scaleY || 100) + 20) }),
                 () => setEditingTextLayerModal(textObj),
                 () => onRemoveTextLayer && onRemoveTextLayer(textObj.id || i),
                 'Text'
@@ -657,66 +776,60 @@ export default function OpusCanvasPreview({
 
               <div className="relative inline-block">
                 {textObj.style === 'neon_tag' ? (
-                  <div className="bg-black/90 text-emerald-300 font-bold text-xs px-3.5 py-1 rounded-full shadow-[0_0_12px_rgba(52,211,153,0.8)] border border-emerald-400 uppercase tracking-wider">
+                  <div className="bg-black/90 text-emerald-300 font-bold text-xs px-3.5 py-1 rounded-full shadow-[0_0_12px_rgba(52,211,153,0.8)] border border-emerald-400 uppercase tracking-wider whitespace-nowrap">
                     {textObj.text}
                   </div>
                 ) : textObj.style === 'gradient_badge' ? (
-                  <div className="bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 text-white font-black text-xs px-3.5 py-1 rounded-xl shadow-xl border border-amber-300 uppercase tracking-wider">
+                  <div className="bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 text-white font-black text-xs px-3.5 py-1 rounded-xl shadow-xl border border-amber-300 uppercase tracking-wider whitespace-nowrap">
                     {textObj.text}
                   </div>
                 ) : textObj.style === 'callout_box' ? (
-                  <div className="bg-[#12141f]/90 backdrop-blur-md text-slate-200 font-medium text-xs px-3 py-1 rounded-xl border border-[#30354e] shadow-lg">
+                  <div className="bg-[#12141f]/90 backdrop-blur-md text-slate-200 font-medium text-xs px-3 py-1 rounded-xl border border-[#30354e] shadow-lg whitespace-nowrap">
                     {textObj.text}
                   </div>
                 ) : textObj.style === 'yellow_impact' ? (
-                  <div className="text-yellow-300 font-black text-sm uppercase drop-shadow-[0_2px_6px_rgba(0,0,0,1)] px-2 py-0.5">
+                  <div className="text-yellow-300 font-black text-sm uppercase drop-shadow-[0_2px_6px_rgba(0,0,0,1)] px-2 py-0.5 whitespace-nowrap">
                     {textObj.text}
                   </div>
                 ) : (
-                  <div className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs px-3 py-1 rounded-lg shadow-xl uppercase tracking-wider border border-indigo-400">
+                  <div className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs px-3 py-1 rounded-lg shadow-xl uppercase tracking-wider border border-indigo-400 whitespace-nowrap">
                     {textObj.text}
                   </div>
                 )}
 
-                {/* Corner Resize Handle */}
-                <div
-                  onMouseDown={(e) => startResizing(e, 'textLayer', textObj.id, currentScale, 65)}
-                  className="absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full bg-indigo-500 text-white flex items-center justify-center cursor-nwse-resize shadow-md hover:scale-125 transition-transform"
-                  title="Kéo góc để phóng to / thu nhỏ chữ"
-                >
-                  <Maximize2 className="w-2.5 h-2.5" />
-                </div>
+                {/* 8-Directional Transform Handles */}
+                {renderTransformBox('textLayer', textObj.id, textObj)}
               </div>
             </div>
           );
         })}
 
         {/* ═════════════════════════════════════════════════════════════════════════════════
-            3. TOP HOOK HEADLINE OVERLAY (DI CHUYỂN, ZOOM TO NHỎ, SỬA & XÓA)
+            3. TOP HOOK HEADLINE OVERLAY (KÉO NGANG, KÉO DỌC, ZOOM GÓC, SỬA & XÓA)
            ═════════════════════════════════════════════════════════════════════════════════ */}
         {titleConfig?.visible !== false && (
           <div 
             style={{
               top: `${titleConfig?.pos?.y ?? 10}%`,
               left: `${titleConfig?.pos?.x ?? 50}%`,
-              transform: `translate(-50%, -50%) scale(${(titleConfig?.scale ?? 100) / 100})`
+              transform: `translate(-50%, -50%) scale(${((titleConfig?.scaleX ?? 100) * (titleConfig?.scale ?? 100)) / 10000}, ${((titleConfig?.scaleY ?? 100) * (titleConfig?.scale ?? 100)) / 10000})`
             }}
             onMouseDown={(e) => !editingTitle && startDragging(e, 'title', null, titleConfig?.pos || { x: 50, y: 10 })}
             onClick={(e) => {
               e.stopPropagation();
               setSelectedElement({ type: 'title', id: null });
             }}
-            className={`absolute z-35 cursor-move group select-none text-center max-w-[92%] ${
-              selectedElement?.type === 'title' ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-black rounded-xl' : ''
-            }`}
-            title="Kéo di chuyển, kéo góc dưới phải để zoom to nhỏ"
+            className="absolute z-35 cursor-move group select-none text-center max-w-[95%]"
+            title="Kéo di chuyển, kéo các cạnh để dãn ngang/dọc, kéo góc để zoom"
           >
             {/* Quick Action Toolbar */}
             {selectedElement?.type === 'title' && !editingTitle && renderElementToolbar(
               'title',
               null,
-              () => onUpdateTitleConfig && onUpdateTitleConfig(prev => ({ ...prev, scale: Math.min(250, (prev.scale || 100) + 15) })),
-              () => onUpdateTitleConfig && onUpdateTitleConfig(prev => ({ ...prev, scale: Math.max(50, (prev.scale || 100) - 15) })),
+              () => onUpdateTitleConfig && onUpdateTitleConfig(prev => ({ ...prev, scale: Math.min(300, (prev.scale || 100) + 15) })),
+              () => onUpdateTitleConfig && onUpdateTitleConfig(prev => ({ ...prev, scale: Math.max(40, (prev.scale || 100) - 15) })),
+              () => onUpdateTitleConfig && onUpdateTitleConfig(prev => ({ ...prev, scaleX: Math.min(350, (prev.scaleX || 100) + 20) })),
+              () => onUpdateTitleConfig && onUpdateTitleConfig(prev => ({ ...prev, scaleY: Math.min(350, (prev.scaleY || 100) + 20) })),
               () => {
                 setEditingTitle(true);
                 setTitleInput(customTitle || clip?.title || '');
@@ -772,38 +885,30 @@ export default function OpusCanvasPreview({
                   </div>
                 )}
 
-                {/* Corner Resize Handle */}
-                <div
-                  onMouseDown={(e) => startResizing(e, 'title', null, titleConfig?.scale ?? 100, 65)}
-                  className="absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-500 text-black flex items-center justify-center cursor-nwse-resize shadow-md hover:scale-125 transition-transform"
-                  title="Kéo góc để phóng to / thu nhỏ Tiêu đề"
-                >
-                  <Maximize2 className="w-2.5 h-2.5" />
-                </div>
+                {/* 8-Directional Transform Handles */}
+                {renderTransformBox('title', null, titleConfig)}
               </div>
             )}
           </div>
         )}
 
         {/* ═════════════════════════════════════════════════════════════════════════════════
-            4. SUBTITLE / DYNAMIC CAPTIONS (DI CHUYỂN, ZOOM TO NHỎ, SỬA LỜI THOẠI & XÓA)
+            4. SUBTITLE / DYNAMIC CAPTIONS (KÉO NGANG, KÉO DỌC, ZOOM GÓC, SỬA & XÓA)
            ═════════════════════════════════════════════════════════════════════════════════ */}
         {captionPreset !== 'No captions' && captionConfig?.visible !== false && activePhrase.length > 0 && (
           <div 
             style={{
               top: `${captionConfig?.pos?.y ?? captionPos?.y ?? 84}%`,
               left: `${captionConfig?.pos?.x ?? captionPos?.x ?? 50}%`,
-              transform: `translate(-50%, -50%) scale(${(captionConfig?.scale ?? 100) / 100})`
+              transform: `translate(-50%, -50%) scale(${((captionConfig?.scaleX ?? 100) * (captionConfig?.scale ?? 100)) / 10000}, ${((captionConfig?.scaleY ?? 100) * (captionConfig?.scale ?? 100)) / 10000})`
             }}
             onMouseDown={(e) => startDragging(e, 'caption', null, captionConfig?.pos || captionPos || { x: 50, y: 84 })}
             onClick={(e) => {
               e.stopPropagation();
               setSelectedElement({ type: 'caption', id: null });
             }}
-            title="Kéo di chuyển, kéo góc dưới phải để zoom to nhỏ phụ đề"
-            className={`absolute z-35 cursor-move group select-none text-center max-w-[95%] ${
-              selectedElement?.type === 'caption' ? 'ring-2 ring-brand-400 ring-offset-2 ring-offset-black rounded-xl' : ''
-            }`}
+            title="Kéo di chuyển, kéo các cạnh để dãn ngang/dọc, kéo góc để zoom"
+            className="absolute z-35 cursor-move group select-none text-center max-w-[96%]"
           >
             {/* Quick Action Toolbar */}
             {selectedElement?.type === 'caption' && renderElementToolbar(
@@ -811,12 +916,14 @@ export default function OpusCanvasPreview({
               null,
               () => {
                 if (setFontStyle) setFontStyle(prev => ({ ...prev, fontSize: Math.min(80, (prev.fontSize || 40) + 4) }));
-                if (onUpdateCaptionConfig) onUpdateCaptionConfig(prev => ({ ...prev, scale: Math.min(250, (prev.scale || 100) + 15) }));
+                if (onUpdateCaptionConfig) onUpdateCaptionConfig(prev => ({ ...prev, scale: Math.min(300, (prev.scale || 100) + 15) }));
               },
               () => {
                 if (setFontStyle) setFontStyle(prev => ({ ...prev, fontSize: Math.max(18, (prev.fontSize || 40) - 4) }));
-                if (onUpdateCaptionConfig) onUpdateCaptionConfig(prev => ({ ...prev, scale: Math.max(50, (prev.scale || 100) - 15) }));
+                if (onUpdateCaptionConfig) onUpdateCaptionConfig(prev => ({ ...prev, scale: Math.max(40, (prev.scale || 100) - 15) }));
               },
+              () => onUpdateCaptionConfig && onUpdateCaptionConfig(prev => ({ ...prev, scaleX: Math.min(350, (prev.scaleX || 100) + 20) })),
+              () => onUpdateCaptionConfig && onUpdateCaptionConfig(prev => ({ ...prev, scaleY: Math.min(350, (prev.scaleY || 100) + 20) })),
               () => {
                 const phraseText = activePhrase.map(w => w.word).join(' ');
                 setEditingPhraseModal({ words: activePhrase, text: phraseText });
@@ -841,7 +948,7 @@ export default function OpusCanvasPreview({
                   WebkitTextStroke: `${strokeWidth * 0.25}px ${strokeColor}`,
                   textShadow: hasShadow ? `${shadowX}px ${shadowY}px ${shadowBlur}px ${shadowColor}` : 'none'
                 }}
-                className="leading-tight tracking-wider transition-all"
+                className="leading-tight tracking-wider transition-all whitespace-nowrap"
               >
                 {activePhrase.slice(0, 5).map((w, idx) => {
                   const isCurrent = currentTime >= w.start && currentTime <= w.end;
@@ -870,14 +977,8 @@ export default function OpusCanvasPreview({
                 })}
               </p>
 
-              {/* Corner Resize Handle */}
-              <div
-                onMouseDown={(e) => startResizing(e, 'caption', null, captionConfig?.scale ?? 100, 65)}
-                className="absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full bg-brand-500 text-white flex items-center justify-center cursor-nwse-resize shadow-md hover:scale-125 transition-transform"
-                title="Kéo góc để phóng to / thu nhỏ phụ đề"
-              >
-                <Maximize2 className="w-2.5 h-2.5" />
-              </div>
+              {/* 8-Directional Transform Handles */}
+              {renderTransformBox('caption', null, captionConfig)}
             </div>
           </div>
         )}

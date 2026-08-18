@@ -67,18 +67,22 @@ export default function App() {
     accentColor: '#ff007a'
   });
 
-  // Top Hook Title Style, Position, Scale & Visibility
+  // Top Hook Title Style, Position, Scale, ScaleX, ScaleY & Visibility
   const [titleConfig, setTitleConfig] = useState({
     visible: true,
     style: 'pill_white', // 'pill_white' | 'neon_cyber' | 'gradient_gold' | 'yellow_impact' | 'minimal'
-    scale: 100, // percentage 50 - 250
+    scale: 100, // percentage 40 - 300
+    scaleX: 100, // horizontal stretch %
+    scaleY: 100, // vertical stretch %
     pos: { x: 50, y: 10 } // Draggable percentage position
   });
 
-  // Subtitle / Caption Position, Scale & Visibility
+  // Subtitle / Caption Position, Scale, ScaleX, ScaleY & Visibility
   const [captionConfig, setCaptionConfig] = useState({
     visible: true,
-    scale: 100, // percentage 50 - 250
+    scale: 100, // percentage 40 - 300
+    scaleX: 100, // horizontal stretch %
+    scaleY: 100, // vertical stretch %
     pos: { x: 50, y: 84 } // Draggable percentage position
   });
 
@@ -590,6 +594,8 @@ export default function App() {
         text: title,
         style: style,
         scale: scale,
+        scaleX: 100,
+        scaleY: 100,
         pos: { x: 50, y: 60 + (prev.length % 4) * 8 }
       }
     ]);
