@@ -73,6 +73,85 @@ class CopilotChatRequest(BaseModel):
 def health_check():
     return {"status": "ok", "app": "AI Video Editor Backend"}
 
+def _background_run_pipeline(input_source: str, gemini_api_key: Optional[str] = None):
+    global current_job
+    try:
+        current_job["status"] = "processing"
+        current_job["progress"] = 10
+        current_job["stage"] = "Bước 1/5: Tải / Nạp video"
+        current_job["message"] = "Đang kiểm tra và nạp dữ liệu video..."
+        current_job["error"] = None
+
+        cleaned_input = input_source.strip().strip('"').strip("'")
+        if cleaned_input.startswith("http://") or cleaned_input.startswith("https://"):
+            video_meta = download_youtube_video(cleaned_input)
+        else:
+            video_meta = prepare_local_video(cleaned_input)
+        
+        video_path = video_meta["video_path"]
+
+        current_job["progress"] = 30
+        current_job["stage"] = "Bước 2/5: Bóc băng Faster-Whisper"
+        current_job["message"] = "AI đang nhận diện giọng nói và căn thời gian từng từ..."
+        
+        transcriber = Transcriber(model_size="small")
+        transcript_result = transcriber.transcribe(video_path)
+
+        current_job["progress"] = 55
+        current_job["stage"] = "Bước 3/5: Lọc từ thừa & khoảng lặng"
+        current_job["message"] = "Đang tự động phát hiện từ ậm ờ và khoảng lặng dài..."
+        clean_result = detect_filler_words_and_silence(transcript_result["words"])
+
+        current_job["progress"] = 75
+        current_job["stage"] = "Bước 4/5: Phân tích Hook - Problem - Solution"
+        current_job["message"] = "AI đang đánh giá độ viral và cấu trúc video 1-4 phút..."
+        viral_results = analyze_viral_clips(transcript_result, api_key=gemini_api_key)
+        clips = viral_results.get("clips", [])
+
+        current_job["progress"] = 90
+        current_job["stage"] = "Bước 5/5: Xuất video clips"
+        current_job["message"] = f"Đang xuất {len(clips)} clip viral..."
+        exported_files = batch_export_clips(video_path, clips, lossless=True)
+
+        results = {
+            "video_metadata": video_meta,
+            "transcript": transcript_result,
+            "clean_result": clean_result,
+            "viral_clips": clips,
+            "exported_files": exported_files
+        }
+        with open(RESULTS_FILE, "w", encoding="utf-8") as fp:
+            json.dump(results, fp, ensure_ascii=False, indent=2)
+
+        current_job["status"] = "completed"
+        current_job["progress"] = 100
+        current_job["stage"] = "Hoàn tất!"
+        current_job["message"] = f"Đã trích xuất thành công {len(clips)} clip viral!"
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        current_job["status"] = "error"
+        current_job["progress"] = 0
+        current_job["stage"] = "Lỗi xử lý"
+        current_job["message"] = str(e)
+        current_job["error"] = str(e)
+
+@app.post("/api/process")
+def process_video_endpoint(req: ProcessRequest, background_tasks: BackgroundTasks):
+    global current_job
+    if current_job["status"] == "processing":
+        raise HTTPException(status_code=400, detail="Một tác vụ khác đang được xử lý. Vui lòng đợi.")
+    
+    current_job = {
+        "status": "processing",
+        "progress": 5,
+        "stage": "Khởi động",
+        "message": "Đang khởi tạo tiến trình phân tích AI...",
+        "error": None
+    }
+    background_tasks.add_task(_background_run_pipeline, req.input_source, req.gemini_api_key)
+    return {"success": True, "message": "Đã bắt đầu tiến trình xử lý video."}
+
 @app.get("/api/job-status")
 def get_job_status():
     return current_job

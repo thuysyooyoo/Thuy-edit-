@@ -116,14 +116,15 @@ def prepare_local_video(file_path: str) -> dict:
     """
     Validate local video file and extract basic info.
     """
-    path = Path(file_path)
+    cleaned = file_path.strip().strip('"').strip("'")
+    path = Path(cleaned)
     if not path.exists():
-        raise FileNotFoundError(f"Không tìm thấy file video tại: {file_path}")
+        raise FileNotFoundError(f"Không tìm thấy file video tại: {cleaned}")
 
     return {
         "title": path.stem,
         "duration": 0,
-        "video_path": str(path),
+        "video_path": str(path.resolve()),
         "id": path.stem,
         "author": "Local File"
     }
