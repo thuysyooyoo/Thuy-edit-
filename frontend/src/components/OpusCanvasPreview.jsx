@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Edit3, Settings, Sparkles, Smile, ShieldAlert, Check, Film, X, UserCheck } from 'lucide-react';
+import { Play, Pause, Edit3, Settings, Sparkles, Smile, ShieldAlert, Check, Film, X, UserCheck, Move, Crown } from 'lucide-react';
 
 export default function OpusCanvasPreview({ 
   videoRef, 
@@ -22,7 +22,13 @@ export default function OpusCanvasPreview({
   aiEmoji = false,
   autoCensor = false,
   speakerColors = true,
-  watermark = { visible: true, text: 'OPUS STUDIO', pos: 'top-right', opacity: 85 },
+  brandConfig = { showLogo: true, logoUrl: null, logoText: 'OPUS STUDIO', logoSize: 65, logoOpacity: 90, pos: { x: 82, y: 6 } },
+  onUpdateBrandConfig,
+  titleConfig = { style: 'pill_white', pos: { x: 50, y: 10 } },
+  onUpdateTitleConfig,
+  captionPos = { x: 50, y: 84 },
+  onUpdateCaptionPos,
+  onUpdateTextLayerPos,
   activeTransition = 'zoom_in',
   onSelectElementToCustomize,
   onRemoveTextLayer,
@@ -41,6 +47,56 @@ export default function OpusCanvasPreview({
   const selfieSegRef = useRef(null);
   const animFrameIdRef = useRef(null);
   const lastTriggeredSceneTransitionRef = useRef(null);
+  const canvasContainerRef = useRef(null);
+
+  const [activeDragging, setActiveDragging] = useState(null);
+
+  const startDragging = (e, type, id = null, currentPos) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setActiveDragging({
+      type,
+      id,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startPosX: currentPos?.x ?? 50,
+      startPosY: currentPos?.y ?? 50
+    });
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!activeDragging || !canvasContainerRef.current) return;
+      const rect = canvasContainerRef.current.getBoundingClientRect();
+      const deltaXPct = ((e.clientX - activeDragging.startMouseX) / rect.width) * 100;
+      const deltaYPct = ((e.clientY - activeDragging.startMouseY) / rect.height) * 100;
+      const newX = Math.max(6, Math.min(94, Math.round(activeDragging.startPosX + deltaXPct)));
+      const newY = Math.max(5, Math.min(95, Math.round(activeDragging.startPosY + deltaYPct)));
+
+      if (activeDragging.type === 'title' && onUpdateTitleConfig) {
+        onUpdateTitleConfig(prev => ({ ...prev, pos: { x: newX, y: newY } }));
+      } else if (activeDragging.type === 'caption' && onUpdateCaptionPos) {
+        onUpdateCaptionPos({ x: newX, y: newY });
+      } else if (activeDragging.type === 'logo' && onUpdateBrandConfig) {
+        onUpdateBrandConfig(prev => ({ ...prev, pos: { x: newX, y: newY } }));
+      } else if (activeDragging.type === 'textLayer' && onUpdateTextLayerPos) {
+        onUpdateTextLayerPos(activeDragging.id, { x: newX, y: newY });
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (activeDragging) setActiveDragging(null);
+    };
+
+    if (activeDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [activeDragging, onUpdateTitleConfig, onUpdateCaptionPos, onUpdateBrandConfig, onUpdateTextLayerPos]);
 
   const activePhrase = words.filter(w => Math.abs(w.start - currentTime) <= 1.4);
 
@@ -290,6 +346,7 @@ export default function OpusCanvasPreview({
     <div className="h-full bg-[#090a0f] flex items-center justify-center p-4 relative overflow-hidden select-none">
       {/* 9:16 Frame Container */}
       <div 
+        ref={canvasContainerRef}
         className={`relative bg-black rounded-xl shadow-2xl overflow-hidden border border-[#2f334a] flex items-center justify-center transition-all duration-300 ${
           aspectRatio === '9:16'
             ? 'w-[290px] sm:w-[320px] md:w-[340px] aspect-[9/16]'
@@ -446,52 +503,117 @@ export default function OpusCanvasPreview({
           </div>
         )}
 
-        {/* ── WATERMARK / LOGO OVERLAY ── */}
-        {watermark.visible && (
+        {/* ── 1. BRAND LOGO / WATERMARK OVERLAY (KÉO THẢ TỰ DO) ── */}
+        {brandConfig?.showLogo && (
           <div 
-            style={{ opacity: watermark.opacity / 100 }}
-            className={`absolute z-20 pointer-events-none ${
-              watermark.pos === 'top-left' ? 'top-4 left-3' :
-              watermark.pos === 'bottom-right' ? 'bottom-4 right-3' : 'top-4 right-3'
-            }`}
+            style={{ 
+              top: `${brandConfig.pos?.y ?? 6}%`, 
+              left: `${brandConfig.pos?.x ?? 82}%`,
+              transform: 'translate(-50%, -50%)',
+              opacity: (brandConfig.logoOpacity ?? 90) / 100 
+            }}
+            onMouseDown={(e) => startDragging(e, 'logo', null, brandConfig.pos || { x: 82, y: 6 })}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelectElementToCustomize('brand');
+            }}
+            className="absolute z-25 cursor-move group select-none transition-shadow"
+            title="Kéo thả để di chuyển vị trí Logo"
           >
-            <div className="px-2 py-1 rounded-md bg-black/60 border border-white/20 text-white font-black text-[10px] tracking-wider uppercase backdrop-blur-xs">
-              {watermark.text}
+            <div className="relative p-1 rounded-xl group-hover:ring-2 group-hover:ring-indigo-400 group-hover:bg-black/40 transition-all flex items-center gap-1.5">
+              {brandConfig?.logoUrl ? (
+                <img 
+                  src={brandConfig.logoUrl} 
+                  alt="Brand Logo" 
+                  style={{ width: `${brandConfig.logoSize || 65}px` }}
+                  className="object-contain drop-shadow-md pointer-events-none"
+                />
+              ) : (
+                <div className="px-2.5 py-1 rounded-md bg-black/70 border border-white/25 text-white font-black text-[10px] tracking-wider uppercase backdrop-blur-xs shadow-md">
+                  {brandConfig?.logoText || 'OPUS STUDIO'}
+                </div>
+              )}
+              <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-sm pointer-events-none">
+                <Move className="w-2.5 h-2.5" />
+              </div>
             </div>
           </div>
         )}
 
-        {/* ── CUSTOM TEXT STICKERS ── */}
-        {textLayers.map((tl, i) => (
-          <div 
-            key={i} 
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelectElementToCustomize('text');
-            }}
-            className="absolute bottom-28 left-3 right-3 text-center cursor-pointer z-20 group"
-          >
-            <div className="relative inline-block">
-              <div className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs px-3 py-1 rounded-lg shadow-xl uppercase tracking-wider border border-indigo-400 hover:scale-105 transition-transform">
-                {tl}
-              </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemoveTextLayer && onRemoveTextLayer(i);
-                }}
-                className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-600 text-white text-[9px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                x
-              </button>
-            </div>
-          </div>
-        ))}
+        {/* ── 2. CUSTOM TEXT STICKERS (KÉO THẢ TỰ DO & ĐA PHONG CÁCH) ── */}
+        {textLayers.map((tl, i) => {
+          const textObj = typeof tl === 'string' ? { id: `tl_${i}`, text: tl, style: 'header', pos: { x: 50, y: 60 + i * 8 } } : tl;
+          const currentPos = textObj.pos || { x: 50, y: 60 + i * 8 };
+          
+          return (
+            <div 
+              key={textObj.id || i}
+              style={{
+                top: `${currentPos.y}%`,
+                left: `${currentPos.x}%`,
+                transform: 'translate(-50%, -50%)'
+              }}
+              onMouseDown={(e) => startDragging(e, 'textLayer', textObj.id, currentPos)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectElementToCustomize('text');
+              }}
+              className="absolute z-25 cursor-move group select-none text-center"
+              title="Kéo thả để di chuyển chữ"
+            >
+              <div className="relative inline-block group-hover:scale-105 transition-transform">
+                {textObj.style === 'neon_tag' ? (
+                  <div className="bg-black/90 text-emerald-300 font-bold text-xs px-3.5 py-1 rounded-full shadow-[0_0_12px_rgba(52,211,153,0.8)] border border-emerald-400 uppercase tracking-wider">
+                    {textObj.text}
+                  </div>
+                ) : textObj.style === 'gradient_badge' ? (
+                  <div className="bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 text-white font-black text-xs px-3.5 py-1 rounded-xl shadow-xl border border-amber-300 uppercase tracking-wider">
+                    {textObj.text}
+                  </div>
+                ) : textObj.style === 'callout_box' ? (
+                  <div className="bg-[#12141f]/90 backdrop-blur-md text-slate-200 font-medium text-xs px-3 py-1 rounded-xl border border-[#30354e] shadow-lg">
+                    {textObj.text}
+                  </div>
+                ) : textObj.style === 'yellow_impact' ? (
+                  <div className="text-yellow-300 font-black text-sm uppercase drop-shadow-[0_2px_6px_rgba(0,0,0,1)] px-2 py-0.5">
+                    {textObj.text}
+                  </div>
+                ) : (
+                  <div className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs px-3 py-1 rounded-lg shadow-xl uppercase tracking-wider border border-indigo-400">
+                    {textObj.text}
+                  </div>
+                )}
 
-        {/* ── TOP HOOK HEADLINE OVERLAY ── */}
-        <div className="absolute top-12 left-3 right-3 text-center z-20">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveTextLayer && onRemoveTextLayer(textObj.id || i);
+                  }}
+                  className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                >
+                  x
+                </button>
+                <div className="absolute -top-2 -left-2 w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-md pointer-events-none">
+                  <Move className="w-2.5 h-2.5" />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* ── 3. TOP HOOK HEADLINE OVERLAY (KÉO THẢ & 5 PHONG CÁCH) ── */}
+        <div 
+          style={{
+            top: `${titleConfig?.pos?.y ?? 10}%`,
+            left: `${titleConfig?.pos?.x ?? 50}%`,
+            transform: 'translate(-50%, -50%)'
+          }}
+          onMouseDown={(e) => !editingTitle && startDragging(e, 'title', null, titleConfig?.pos || { x: 50, y: 10 })}
+          className="absolute z-25 cursor-move group select-none text-center max-w-[92%]"
+          title="Kéo thả để di chuyển Tiêu Đề Hook"
+        >
           {editingTitle ? (
-            <div className="bg-[#181a26] border border-[#3b4160] p-2 rounded-xl shadow-2xl space-y-2">
+            <div className="bg-[#181a26] border border-[#3b4160] p-2 rounded-xl shadow-2xl space-y-2 cursor-default">
               <input
                 type="text"
                 value={titleInput}
@@ -509,30 +631,63 @@ export default function OpusCanvasPreview({
             <div 
               onClick={(e) => {
                 e.stopPropagation();
-                onSelectElementToCustomize('title');
+                onSelectElementToCustomize('brand');
                 setEditingTitle(true);
                 setTitleInput(customTitle || clip?.title || '');
               }}
-              title="Click để sửa tiêu đề Hook đỉnh video"
-              className="bg-white/95 hover:bg-white text-black font-black text-xs sm:text-sm px-3 py-1.5 rounded-lg shadow-lg inline-block max-w-[90%] leading-snug tracking-tight uppercase border border-white cursor-pointer hover:ring-2 hover:ring-brand-500 transition-all group"
+              className="relative inline-block group-hover:scale-105 transition-transform"
             >
-              <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
-              <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-slate-700 transition-opacity" />
+              {titleConfig?.style === 'neon_cyber' ? (
+                <div className="bg-black/90 text-emerald-300 font-black text-xs sm:text-sm px-3.5 py-1.5 rounded-xl border-2 border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.6)] uppercase tracking-tight">
+                  <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
+                  <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-emerald-300 transition-opacity" />
+                </div>
+              ) : titleConfig?.style === 'gradient_gold' ? (
+                <div className="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-black font-black text-xs sm:text-sm px-3.5 py-1.5 rounded-xl shadow-2xl border border-yellow-200 uppercase tracking-tight">
+                  <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
+                  <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-black transition-opacity" />
+                </div>
+              ) : titleConfig?.style === 'yellow_impact' ? (
+                <div className="text-yellow-300 font-black text-sm sm:text-base px-3 py-1 drop-shadow-[0_4px_8px_rgba(0,0,0,1)] uppercase tracking-tight">
+                  <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
+                  <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-yellow-300 transition-opacity" />
+                </div>
+              ) : titleConfig?.style === 'minimal' ? (
+                <div className="bg-black/60 backdrop-blur-md text-white font-bold text-xs sm:text-sm px-3.5 py-1.5 rounded-xl border border-white/20 shadow-lg uppercase tracking-tight">
+                  <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
+                  <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-white transition-opacity" />
+                </div>
+              ) : (
+                <div className="bg-white/95 hover:bg-white text-black font-black text-xs sm:text-sm px-3 py-1.5 rounded-lg shadow-lg inline-block leading-snug tracking-tight uppercase border border-white">
+                  <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
+                  <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-slate-700 transition-opacity" />
+                </div>
+              )}
+
+              <div className="absolute -top-2 -left-2 w-4 h-4 rounded-full bg-amber-500 text-black flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-md pointer-events-none">
+                <Move className="w-2.5 h-2.5" />
+              </div>
             </div>
           )}
         </div>
 
-        {/* ── SUBTITLE / CAPTION OVERLAY ── */}
+        {/* ── 4. SUBTITLE / CAPTION OVERLAY (KÉO THẢ VỊ TRÍ) ── */}
         <div 
+          style={{
+            top: `${captionPos?.y ?? 84}%`,
+            left: `${captionPos?.x ?? 50}%`,
+            transform: 'translate(-50%, -50%)'
+          }}
+          onMouseDown={(e) => startDragging(e, 'caption', null, captionPos || { x: 50, y: 84 })}
           onClick={(e) => {
             e.stopPropagation();
             onSelectElementToCustomize('captions');
           }}
-          title="Click vào phụ đề để mở bảng tùy chỉnh Font, Màu sắc, Viền, Bóng"
-          className="absolute bottom-12 left-3 right-3 text-center cursor-pointer group z-20"
+          title="Kéo thả để di chuyển vị trí Phụ đề"
+          className="absolute z-25 cursor-move group select-none text-center max-w-[95%]"
         >
           {captionPreset !== 'No captions' && activePhrase.length > 0 && (
-            <div className="inline-block max-w-[95%] relative p-1.5 rounded-xl group-hover:ring-1 group-hover:ring-brand-400/60 group-hover:bg-black/30 transition-all">
+            <div className="inline-block relative p-1.5 rounded-xl group-hover:ring-1 group-hover:ring-brand-400/60 group-hover:bg-black/30 transition-all">
               <p 
                 style={{
                   fontFamily: fontFamily,
@@ -577,6 +732,9 @@ export default function OpusCanvasPreview({
                   );
                 })}
               </p>
+              <div className="absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full bg-brand-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-md pointer-events-none">
+                <Move className="w-2.5 h-2.5" />
+              </div>
             </div>
           )}
         </div>

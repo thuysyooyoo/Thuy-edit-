@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Sparkles, 
   Subtitles, 
@@ -33,7 +33,9 @@ import {
   Loader2,
   Trash2,
   Image as ImageIcon,
-  CheckCircle2
+  CheckCircle2,
+  Move,
+  Crown
 } from 'lucide-react';
 
 export default function OpusRightSidebar({
@@ -97,7 +99,12 @@ export default function OpusRightSidebar({
   clip,
   selectedTransitionSceneId,
   setSelectedTransitionSceneId,
-  onUpdateSceneTransition
+  onUpdateSceneTransition,
+  // Brand Template & Title Customization
+  brandConfig,
+  setBrandConfig,
+  titleConfig,
+  setTitleConfig
 }) {
   const [captionSubTab, setCaptionSubTab] = useState('presets');
   const [playingFx, setPlayingFx] = useState(null);
@@ -108,6 +115,10 @@ export default function OpusRightSidebar({
 
   // Text Tab State
   const [customTextInput, setCustomTextInput] = useState('');
+  const [selectedTextStyle, setSelectedTextStyle] = useState('header');
+
+  // Brand Logo Upload Ref
+  const logoInputRef = useRef(null);
 
   // Dubbing State
   const [dubbingLang, setDubbingLang] = useState('en');
@@ -835,24 +846,171 @@ export default function OpusRightSidebar({
         )}
 
         {/* ═══════════════════════════════════════════════════
-            TAB 4: BRAND TEMPLATE
+            TAB 4: BRAND TEMPLATE & LOGO
            ═══════════════════════════════════════════════════ */}
         {activeTab === 'brand' && (
           <div className="space-y-4 font-sans text-xs">
-            <h3 className="font-bold text-white text-sm">Brand Template (Bộ Nhận Diện)</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                <Crown className="w-4 h-4 text-amber-400" />
+                <span>Brand Template & Logo</span>
+              </h3>
+              <span className="text-[10px] text-indigo-400 font-mono font-bold">Kéo thả tự do</span>
+            </div>
+
+            {/* 1. Logo Upload & Settings */}
             <div className="p-3.5 bg-[#171926] border border-[#272b40] rounded-2xl space-y-3">
-              <div className="font-semibold text-slate-200">Màu sắc chủ đạo thương hiệu</div>
-              <div className="flex items-center gap-2">
-                <input type="color" defaultValue="#6366f1" className="w-8 h-8 rounded-lg cursor-pointer bg-transparent border-0" />
-                <input type="color" defaultValue="#04f827" className="w-8 h-8 rounded-lg cursor-pointer bg-transparent border-0" />
-                <input type="color" defaultValue="#ff007a" className="w-8 h-8 rounded-lg cursor-pointer bg-transparent border-0" />
+              <div className="flex items-center justify-between pb-1.5 border-b border-[#222638]">
+                <span className="font-bold text-white flex items-center gap-1.5">
+                  <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Logo Thương Hiệu</span>
+                </span>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={brandConfig?.showLogo ?? true}
+                    onChange={(e) => setBrandConfig && setBrandConfig({ ...brandConfig, showLogo: e.target.checked })}
+                    className="w-4 h-4 accent-indigo-500 rounded cursor-pointer"
+                  />
+                  <span className="text-slate-300 text-[11px]">Hiển thị</span>
+                </label>
               </div>
-              <button
-                onClick={() => alert("Đã lưu Brand Kit nhận diện thương hiệu thành công!")}
-                className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors"
-              >
-                Lưu Bộ Nhận Diện Thương Hiệu
-              </button>
+
+              {/* Upload button & preview */}
+              <div className="flex items-center gap-3">
+                <div 
+                  onClick={() => logoInputRef.current?.click()}
+                  className="w-16 h-16 rounded-xl bg-[#10121a] border-2 border-dashed border-[#2f334a] hover:border-indigo-500 flex flex-col items-center justify-center cursor-pointer transition-colors overflow-hidden shrink-0 group relative"
+                >
+                  {brandConfig?.logoUrl ? (
+                    <img src={brandConfig.logoUrl} alt="Logo" className="w-full h-full object-contain p-1" />
+                  ) : (
+                    <>
+                      <UploadCloud className="w-5 h-5 text-slate-400 group-hover:text-indigo-400" />
+                      <span className="text-[8px] text-slate-400 mt-1">Tải Logo</span>
+                    </>
+                  )}
+                </div>
+
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const url = URL.createObjectURL(file);
+                      setBrandConfig && setBrandConfig({ ...brandConfig, logoUrl: url, showLogo: true });
+                    }
+                  }}
+                  className="hidden"
+                />
+
+                <div className="flex-1 space-y-1.5">
+                  <div className="text-[11px] font-bold text-white">
+                    {brandConfig?.logoUrl ? "Đã tải Logo ảnh" : "Chưa có ảnh Logo (Dùng chữ)"}
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => logoInputRef.current?.click()}
+                      className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px]"
+                    >
+                      + Tải ảnh mới
+                    </button>
+                    {brandConfig?.logoUrl && (
+                      <button
+                        onClick={() => setBrandConfig && setBrandConfig({ ...brandConfig, logoUrl: null })}
+                        className="px-2.5 py-1 rounded-lg bg-rose-950/60 border border-rose-500/40 text-rose-300 hover:bg-rose-600 hover:text-white font-bold text-[10px]"
+                      >
+                        Xóa Logo
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Slogan / Brand Text */}
+              <div>
+                <span className="text-slate-400 text-[10px]">Tên thương hiệu / Slogan:</span>
+                <input
+                  type="text"
+                  value={brandConfig?.logoText || ''}
+                  onChange={(e) => setBrandConfig && setBrandConfig({ ...brandConfig, logoText: e.target.value })}
+                  placeholder="OPUS STUDIO"
+                  className="w-full bg-[#10121a] border border-[#272b3d] text-white rounded-lg px-2.5 py-1 text-xs mt-1 font-bold"
+                />
+              </div>
+
+              {/* Logo Size & Opacity */}
+              <div className="space-y-2 pt-1 border-t border-[#202334]">
+                <div className="flex items-center justify-between text-slate-300">
+                  <span>Kích thước Logo:</span>
+                  <span className="font-mono text-indigo-400">{brandConfig?.logoSize || 65}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="30"
+                  max="140"
+                  value={brandConfig?.logoSize || 65}
+                  onChange={(e) => setBrandConfig && setBrandConfig({ ...brandConfig, logoSize: parseInt(e.target.value) })}
+                  className="w-full h-1.5 bg-[#25283a] rounded-lg appearance-none accent-indigo-500 cursor-pointer"
+                />
+
+                <div className="flex items-center justify-between text-slate-300">
+                  <span>Độ mờ đục:</span>
+                  <span className="font-mono text-indigo-400">{brandConfig?.logoOpacity || 90}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="10"
+                  max="100"
+                  value={brandConfig?.logoOpacity || 90}
+                  onChange={(e) => setBrandConfig && setBrandConfig({ ...brandConfig, logoOpacity: parseInt(e.target.value) })}
+                  className="w-full h-1.5 bg-[#25283a] rounded-lg appearance-none accent-indigo-500 cursor-pointer"
+                />
+              </div>
+
+              {/* Drag tip */}
+              <div className="p-2 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-[10px] text-indigo-300 flex items-center gap-1.5">
+                <Move className="w-3.5 h-3.5 shrink-0" />
+                <span>Kéo thả Logo tự do: Click & giữ Logo trực tiếp trên khung video xem trước để dời vị trí.</span>
+              </div>
+            </div>
+
+            {/* 2. Top Title Hook Styles */}
+            <div className="p-3.5 bg-[#171926] border border-[#272b40] rounded-2xl space-y-2.5">
+              <div className="font-bold text-white flex items-center justify-between">
+                <span>Phong Cách Tiêu Đề Hook Đỉnh Video</span>
+                <span className="text-[10px] text-amber-400 font-mono">5 Styles</span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-1.5">
+                {[
+                  { id: 'pill_white', name: 'Pill White Classic', desc: 'Nền trắng chữ đen bo góc nổi bật' },
+                  { id: 'neon_cyber', name: 'Neon Cyber Green', desc: 'Viền xanh neon phát sáng công nghệ' },
+                  { id: 'gradient_gold', name: 'Gradient Gold Banner', desc: 'Dải màu vàng kim hoàng gia cuốn hút' },
+                  { id: 'yellow_impact', name: 'Yellow Impact MrBeast', desc: 'Chữ vàng viền đen dày giật gân' },
+                  { id: 'minimal', name: 'Minimalist Clean Glass', desc: 'Nền kính mờ trong suốt thanh lịch' },
+                ].map((st) => (
+                  <div
+                    key={st.id}
+                    onClick={() => setTitleConfig && setTitleConfig({ ...titleConfig, style: st.id })}
+                    className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                      (titleConfig?.style || 'pill_white') === st.id
+                        ? 'bg-amber-950/40 border-amber-500 text-white ring-1 ring-amber-500'
+                        : 'bg-[#12131e] border-[#222638] text-slate-300 hover:border-slate-500'
+                    }`}
+                  >
+                    <div>
+                      <div className="font-bold text-xs text-white">{st.name}</div>
+                      <div className="text-[10px] text-slate-400">{st.desc}</div>
+                    </div>
+                    {(titleConfig?.style || 'pill_white') === st.id && (
+                      <Check className="w-4 h-4 text-amber-400 shrink-0" />
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -1040,57 +1198,127 @@ export default function OpusRightSidebar({
         )}
 
         {/* ═══════════════════════════════════════════════════
-            TAB 7: TEXT LAYERS
+            TAB 7: TEXT LAYERS (CHỮ & NHÃN DÁN ĐA PHONG CÁCH)
            ═══════════════════════════════════════════════════ */}
         {activeTab === 'text' && (
           <div className="space-y-4 font-sans text-xs">
-            <h3 className="font-bold text-white text-sm">Thêm Chữ (Text Layers)</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                <Type className="w-4 h-4 text-indigo-400" />
+                <span>Thêm Chữ (Text Layers)</span>
+              </h3>
+              <span className="text-[10px] text-indigo-400 font-mono font-bold">Kéo thả tự do</span>
+            </div>
             
             <div className="space-y-2">
-              <button
-                onClick={() => onAddTextLayer && onAddTextLayer("TIÊU ĐỀ NỔI BẬT")}
-                className="w-full p-3 bg-[#161826] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left font-bold text-sm text-white transition-colors"
-              >
-                + Thêm Tiêu Đề Lớn (Header)
-              </button>
+              <div className="text-[11px] font-bold text-slate-300">Chọn Kiểu Chữ Cần Thêm Nhanh:</div>
+              
+              <div className="grid grid-cols-1 gap-2">
+                <button
+                  onClick={() => onAddTextLayer && onAddTextLayer("TIÊU ĐỀ NỔI BẬT", "header")}
+                  className="p-3 bg-[#161826] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
+                >
+                  <div>
+                    <div className="font-black text-xs text-white uppercase group-hover:text-indigo-300">+ Tiêu Đề Lớn (Header)</div>
+                    <div className="text-[10px] text-slate-400">Chữ in hoa trắng, đổ bóng dày nổi bật</div>
+                  </div>
+                  <span className="text-[9px] px-2 py-0.5 rounded bg-indigo-600 text-white font-bold shrink-0">Thêm</span>
+                </button>
 
-              <button
-                onClick={() => onAddTextLayer && onAddTextLayer("Chú thích quan trọng...")}
-                className="w-full p-2.5 bg-[#161826] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left font-medium text-xs text-slate-300 transition-colors"
-              >
-                + Thêm Chú Thích (Callout)
-              </button>
+                <button
+                  onClick={() => onAddTextLayer && onAddTextLayer("⚡ BÍ QUYẾT VIRAL", "neon_tag")}
+                  className="p-3 bg-[#161826] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
+                >
+                  <div>
+                    <div className="font-bold text-xs text-emerald-300 group-hover:text-emerald-200">+ Nhãn Neon Dạ Quang (Neon Tag)</div>
+                    <div className="text-[10px] text-slate-400">Viền neon xanh dạ quang phát sáng</div>
+                  </div>
+                  <span className="text-[9px] px-2 py-0.5 rounded bg-emerald-600 text-white font-bold shrink-0">Thêm</span>
+                </button>
 
-              <button
-                onClick={() => onAddTextLayer && onAddTextLayer("@kenh_official")}
-                className="w-full p-2.5 bg-[#161826] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left font-semibold text-xs text-indigo-300 transition-colors"
-              >
-                + Thêm Social Handle (@username)
-              </button>
+                <button
+                  onClick={() => onAddTextLayer && onAddTextLayer("🔥 XEM NGAY ĐIỀU NÀY", "gradient_badge")}
+                  className="p-3 bg-[#161826] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
+                >
+                  <div>
+                    <div className="font-black text-xs text-amber-300 group-hover:text-amber-200">+ Thẻ Gradient Rực Rỡ (Badge)</div>
+                    <div className="text-[10px] text-slate-400">Dải cam vàng rực rỡ thu hút mắt nhìn</div>
+                  </div>
+                  <span className="text-[9px] px-2 py-0.5 rounded bg-amber-600 text-white font-bold shrink-0">Thêm</span>
+                </button>
+
+                <button
+                  onClick={() => onAddTextLayer && onAddTextLayer("Chú thích quan trọng...", "callout_box")}
+                  className="p-3 bg-[#161826] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
+                >
+                  <div>
+                    <div className="font-medium text-xs text-slate-200 group-hover:text-white">+ Khung Chú Thích (Callout Box)</div>
+                    <div className="text-[10px] text-slate-400">Nền tối bo góc thanh lịch</div>
+                  </div>
+                  <span className="text-[9px] px-2 py-0.5 rounded bg-slate-700 text-white font-bold shrink-0">Thêm</span>
+                </button>
+
+                <button
+                  onClick={() => onAddTextLayer && onAddTextLayer("KHÔNG THỂ TIN ĐƯỢC!", "yellow_impact")}
+                  className="p-3 bg-[#161826] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
+                >
+                  <div>
+                    <div className="font-black text-xs text-yellow-300 group-hover:text-yellow-200">+ Chữ Vàng Viền Đen (Yellow Impact)</div>
+                    <div className="text-[10px] text-slate-400">Phong cách MrBeast giật gân</div>
+                  </div>
+                  <span className="text-[9px] px-2 py-0.5 rounded bg-yellow-600 text-black font-bold shrink-0">Thêm</span>
+                </button>
+              </div>
             </div>
 
-            <div className="pt-2 border-t border-[#202334] space-y-2">
-              <span className="text-slate-400 text-[11px]">Tự gõ chữ tùy ý:</span>
+            {/* Custom Text Input */}
+            <div className="pt-3 border-t border-[#202334] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-300 font-bold">Tự gõ chữ tùy ý:</span>
+                <select
+                  value={selectedTextStyle}
+                  onChange={(e) => setSelectedTextStyle(e.target.value)}
+                  className="bg-[#12131e] border border-[#2d3248] text-white rounded-lg px-2 py-0.5 text-[10px] font-bold"
+                >
+                  <option value="header">Kiểu Header</option>
+                  <option value="neon_tag">Kiểu Neon</option>
+                  <option value="gradient_badge">Kiểu Gradient</option>
+                  <option value="callout_box">Kiểu Callout</option>
+                  <option value="yellow_impact">Kiểu Yellow Impact</option>
+                </select>
+              </div>
+
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={customTextInput}
                   onChange={(e) => setCustomTextInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && customTextInput.trim()) {
+                      onAddTextLayer && onAddTextLayer(customTextInput.trim(), selectedTextStyle);
+                      setCustomTextInput('');
+                    }
+                  }}
                   placeholder="Nhập chữ cần chèn..."
-                  className="flex-1 bg-[#10121a] border border-[#272b3d] text-white rounded-lg px-2.5 py-1 text-xs"
+                  className="flex-1 bg-[#10121a] border border-[#272b3d] text-white rounded-xl px-3 py-1.5 text-xs font-semibold"
                 />
                 <button
                   disabled={!customTextInput.trim()}
                   onClick={() => {
                     if (customTextInput.trim()) {
-                      onAddTextLayer && onAddTextLayer(customTextInput.trim());
+                      onAddTextLayer && onAddTextLayer(customTextInput.trim(), selectedTextStyle);
                       setCustomTextInput('');
                     }
                   }}
-                  className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold rounded-lg text-xs"
+                  className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold rounded-xl text-xs transition-colors shrink-0"
                 >
                   Thêm
                 </button>
+              </div>
+
+              <div className="p-2 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-[10px] text-indigo-300 flex items-center gap-1.5">
+                <Move className="w-3.5 h-3.5 shrink-0" />
+                <span>Kéo thả chữ tự do: Click & giữ chữ trực tiếp trên khung video xem trước để dời tới bất kỳ điểm nào.</span>
               </div>
             </div>
           </div>

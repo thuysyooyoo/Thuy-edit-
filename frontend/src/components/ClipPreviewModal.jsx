@@ -95,29 +95,34 @@ export default function ClipPreviewModal({
               <p className="text-[11px] text-slate-400 mt-1">AI Viral Score</p>
             </div>
 
-            {/* Score Factors */}
+            {/* Score Factors: HOOK - PROBLEM - SOLUTION */}
             <div className="space-y-3 text-xs">
               <div className="flex items-center justify-between">
-                <span className="text-slate-300">Hook:</span>
-                <strong className="text-emerald-400 font-bold">A+</strong>
+                <span className="text-slate-300 font-semibold">Hook:</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-mono text-slate-400">({clip.hook_score || 95})</span>
+                  <strong className="text-emerald-400 font-bold">{clip.hook_grade || 'A+'}</strong>
+                </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-300">Flow:</span>
-                <strong className="text-emerald-400 font-bold">A</strong>
+                <span className="text-slate-300 font-semibold">Problem:</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-mono text-slate-400">({clip.problem_score || 90})</span>
+                  <strong className="text-emerald-400 font-bold">{clip.problem_grade || 'A'}</strong>
+                </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-300">Value:</span>
-                <strong className="text-emerald-400 font-bold">A+</strong>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-300">Trend:</span>
-                <strong className="text-emerald-400 font-bold">A</strong>
+                <span className="text-slate-300 font-semibold">Solution:</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-mono text-slate-400">({clip.solution_score || 92})</span>
+                  <strong className="text-emerald-400 font-bold">{clip.solution_grade || 'A+'}</strong>
+                </div>
               </div>
             </div>
           </div>
 
           <div className="text-[10px] text-slate-500">
-            Trích xuất bởi Gemini AI & Whisper
+            Đánh giá 3 Trụ Cột: Hook - Problem - Solution
           </div>
         </div>
 
@@ -201,8 +206,41 @@ export default function ClipPreviewModal({
               <span>Thời lượng: <strong>{clip.duration}s</strong></span>
             </div>
 
+            {/* Hook, Problem, Solution Analysis Breakdown */}
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className="p-2.5 rounded-xl bg-amber-950/30 border border-amber-500/40 space-y-1">
+                <div className="flex items-center justify-between text-amber-400 font-bold text-[11px]">
+                  <span>🪝 Hook</span>
+                  <span className="text-[10px] bg-amber-500/20 px-1.5 py-0.2 rounded font-mono">{clip.hook_grade || 'A+'}</span>
+                </div>
+                <p className="text-[11px] text-slate-300 line-clamp-2 leading-tight">
+                  {clip.hook || "Câu mở đầu thu hút sự chú ý"}
+                </p>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-rose-950/30 border border-rose-500/40 space-y-1">
+                <div className="flex items-center justify-between text-rose-400 font-bold text-[11px]">
+                  <span>⚠️ Problem</span>
+                  <span className="text-[10px] bg-rose-500/20 px-1.5 py-0.2 rounded font-mono">{clip.problem_grade || 'A'}</span>
+                </div>
+                <p className="text-[11px] text-slate-300 line-clamp-2 leading-tight">
+                  {clip.problem || "Vấn đề / nỗi đau của người xem"}
+                </p>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/40 space-y-1">
+                <div className="flex items-center justify-between text-emerald-400 font-bold text-[11px]">
+                  <span>💡 Solution</span>
+                  <span className="text-[10px] bg-emerald-500/20 px-1.5 py-0.2 rounded font-mono">{clip.solution_grade || 'A+'}</span>
+                </div>
+                <p className="text-[11px] text-slate-300 line-clamp-2 leading-tight">
+                  {clip.solution || "Giải pháp / giá trị mang lại"}
+                </p>
+              </div>
+            </div>
+
             {/* Transcript Snippet Box */}
-            <div className="bg-[#0b0c12] p-4 rounded-2xl border border-[#212435] text-xs text-slate-200 leading-relaxed max-h-[40vh] overflow-y-auto">
+            <div className="bg-[#0b0c12] p-4 rounded-2xl border border-[#212435] text-xs text-slate-200 leading-relaxed max-h-[30vh] overflow-y-auto">
               <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
                 <span className="px-1 py-0.5 rounded bg-[#202334] text-slate-300">CC</span>
                 <span>Lời thoại trong đoạn:</span>
@@ -219,7 +257,7 @@ export default function ClipPreviewModal({
 
           {/* Bottom Note */}
           <div className="text-[11px] text-slate-500 pt-2 border-t border-[#1f2233]">
-            Clip đã được cắt trọn vẹn kết câu theo cấu trúc Hook - Problem - Solution.
+            Clip đã được cắt trọn vẹn kết câu theo cấu trúc 3 Trụ Cột: Hook - Problem - Solution (Thời lượng: {clip.duration}s).
           </div>
         </div>
 

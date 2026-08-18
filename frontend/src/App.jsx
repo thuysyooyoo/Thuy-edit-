@@ -54,14 +54,28 @@ export default function App() {
     setSelectedTransitionSceneId(sceneId);
   };
 
-  // Watermark Live Overlay
-  const [watermark, setWatermark] = useState({
-    visible: true,
-    text: 'OPUS STUDIO',
-    pos: 'top-right',
-    opacity: 85
+  // Brand Logo & Template Configuration
+  const [brandConfig, setBrandConfig] = useState({
+    showLogo: true,
+    logoUrl: null, // Custom uploaded logo URL
+    logoText: 'OPUS STUDIO',
+    logoSize: 65,
+    logoOpacity: 90,
+    pos: { x: 82, y: 6 }, // Draggable percentage position
+    primaryColor: '#6366f1',
+    secondaryColor: '#04f827',
+    accentColor: '#ff007a'
   });
-  
+
+  // Top Hook Title Style & Position
+  const [titleConfig, setTitleConfig] = useState({
+    style: 'pill_white', // 'pill_white' | 'neon_cyber' | 'gradient_gold' | 'yellow_impact' | 'minimal'
+    pos: { x: 50, y: 10 } // Draggable percentage position
+  });
+
+  // Subtitle / Caption Position
+  const [captionPos, setCaptionPos] = useState({ x: 50, y: 84 }); // Draggable percentage position
+
   // Auto vs Manual Sound FX & Ducking (Phiên 3)
   const [autoWhoosh, setAutoWhoosh] = useState(true);
   const [autoDing, setAutoDing] = useState(true);
@@ -98,7 +112,7 @@ export default function App() {
   const [pauseThreshold, setPauseThreshold] = useState(0.5);
   const [activeCleanupMode, setActiveCleanupMode] = useState(null);
 
-  // Layers: B-Roll, Sound FX, Text Layers
+  // Layers: B-Roll, Sound FX, Draggable Text Layers
   const [brolls, setBrolls] = useState([]);
   const [soundFxMarkers, setSoundFxMarkers] = useState([]);
   const [textLayers, setTextLayers] = useState([]);
@@ -562,12 +576,24 @@ export default function App() {
     setExcludedPauseIndices(next);
   };
 
-  const handleAddTextLayer = (title) => {
-    setTextLayers(prev => [...prev, title]);
+  const handleAddTextLayer = (title, style = 'header') => {
+    setTextLayers(prev => [
+      ...prev,
+      {
+        id: `tl_${Date.now()}_${prev.length}`,
+        text: title,
+        style: style,
+        pos: { x: 50, y: 60 + (prev.length % 4) * 8 }
+      }
+    ]);
   };
 
-  const handleRemoveTextLayer = (index) => {
-    setTextLayers(prev => prev.filter((_, i) => i !== index));
+  const handleUpdateTextLayerPos = (id, pos) => {
+    setTextLayers(prev => prev.map(tl => tl.id === id ? { ...tl, pos } : tl));
+  };
+
+  const handleRemoveTextLayer = (id) => {
+    setTextLayers(prev => prev.filter(tl => tl.id !== id));
   };
 
   const handleSplitAtPlayhead = () => {
@@ -815,7 +841,7 @@ export default function App() {
               />
             </div>
 
-            {/* Center: Video Canvas Preview với Full Live Visual Transformations */}
+            {/* Center: Video Canvas Preview với Full Live Visual Transformations & Kéo thả di chuyển */}
             <div className="col-span-4 h-full overflow-hidden">
               <OpusCanvasPreview
                 videoRef={videoRef}
@@ -838,7 +864,13 @@ export default function App() {
                 aiEmoji={aiEmoji}
                 autoCensor={autoCensor}
                 speakerColors={speakerColors}
-                watermark={watermark}
+                brandConfig={brandConfig}
+                onUpdateBrandConfig={setBrandConfig}
+                titleConfig={titleConfig}
+                onUpdateTitleConfig={setTitleConfig}
+                captionPos={captionPos}
+                onUpdateCaptionPos={setCaptionPos}
+                onUpdateTextLayerPos={handleUpdateTextLayerPos}
                 activeTransition={activeTransition}
                 onSelectElementToCustomize={handleSelectElementToCustomize}
                 onRemoveTextLayer={handleRemoveTextLayer}
@@ -878,8 +910,10 @@ export default function App() {
                 setAutoBroll={setAutoBroll}
                 fontStyle={fontStyle}
                 setFontStyle={setFontStyle}
-                watermark={watermark}
-                setWatermark={setWatermark}
+                brandConfig={brandConfig}
+                setBrandConfig={setBrandConfig}
+                titleConfig={titleConfig}
+                setTitleConfig={setTitleConfig}
                 onRemoveAllFillers={handleRemoveAllFillers}
                 onRemoveAllPauses={handleRemoveAllPauses}
                 pauseThreshold={pauseThreshold}
