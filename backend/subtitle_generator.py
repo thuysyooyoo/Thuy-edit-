@@ -29,21 +29,53 @@ def generate_ass_subtitles(
     end_time: float,
     output_ass_path: str,
     hook_title: Optional[str] = None,
-    font_style: Optional[Dict] = None
+    title_config: Optional[Dict] = None,
+    caption_config: Optional[Dict] = None,
+    caption_preset: Optional[str] = 'hormozi',
+    font_style: Optional[Dict] = None,
+    text_layers: Optional[List[Dict]] = None,
+    excluded_word_indices: Optional[List[int]] = None
 ) -> str:
     """
-    Sinh file phụ đề ASS chuẩn 1080x1920 có hiệu ứng nhảy chữ Karaoke và Hook Bar.
+    🔥 WYSIWYG SUBTITLE & OVERLAY GENERATOR (Chuẩn 1080x1920 Full HD):
+    - Đốt Tiêu đề Hook theo đúng Style (Pill White, Neon, Gradient Gold, Yellow Impact, Minimal), vị trí và thời lượng.
+    - Đốt Phụ đề theo đúng Preset (Hormozi, MrBeast, Karaoke, Cyberpunk), Font, Cỡ, Màu sắc, Vị trí kéo thả.
+    - Đốt các Nhãn dán Chữ (Text Layers) đúng vị trí và Style.
+    - Lọc bỏ 100% các từ đã bị xóa / gạch bỏ (excluded_word_indices).
     """
     font_style = font_style or {}
+    title_config = title_config or {}
+    caption_config = caption_config or {}
+    text_layers = text_layers or []
+    excluded_set = set(excluded_word_indices or [])
+
     font_family = font_style.get("fontFamily", "Montserrat")
-    font_size = font_style.get("fontSize", 42)
+    base_font_size = font_style.get("fontSize", 40)
+    caption_scale = (caption_config.get("scale", 100)) / 100.0
+    actual_font_size = int(base_font_size * 2.2 * caption_scale)
+
     text_color = color_to_ass_hex(font_style.get("textColor", "#FFFFFF"), "&H00FFFFFF")
     stroke_color = color_to_ass_hex(font_style.get("strokeColor", "#000000"), "&H00000000")
     stroke_width = font_style.get("strokeWidth", 8)
-    highlight_color = color_to_ass_hex(font_style.get("highlightColor", "#04f827"), "&H0027F804") # Neon Green
+    highlight_color = color_to_ass_hex(font_style.get("highlightColor", "#04f827"), "&H0027F804")
     is_uppercase = font_style.get("isUppercase", True)
 
-    clip_words = [w for w in words if w["start"] >= start_time - 0.2 and w["end"] <= end_time + 0.5]
+    # Subtitle Position (Default x: 50%, y: 84% -> 540, 1612)
+    cap_pos = caption_config.get("pos", {"x": 50, "y": 84})
+    sub_x = int((cap_pos.get("x", 50) / 100.0) * 1080)
+    sub_y = int((cap_pos.get("y", 84) / 100.0) * 1920)
+
+    # Hook Title Position (Default x: 50%, y: 10% -> 540, 192)
+    title_pos = title_config.get("pos", {"x": 50, "y": 10})
+    title_x = int((title_pos.get("x", 50) / 100.0) * 1080)
+    title_y = int((title_pos.get("y", 10) / 100.0) * 1920)
+
+    title_scale = (title_config.get("scale", 100)) / 100.0
+    title_font_size = int(50 * title_scale)
+    title_style_type = title_config.get("style", "pill_white")
+    title_start_offset = float(title_config.get("startTime", 0.0))
+    title_duration = float(title_config.get("duration", 6.0))
+    title_visible = title_config.get("visible", True)
 
     ass_header = f"""[Script Info]
 ScriptType: v4.00+
@@ -53,8 +85,17 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: SubtitleStyle,{font_family},{font_size * 2},{text_color},&H000000FF,{stroke_color},&H80000000,-1,0,0,0,100,100,1,0,1,{stroke_width},2,2,40,40,240,1
-Style: HookStyle,Montserrat,60,&H00000000,&H000000FF,&H00FFFFFF,&H00FFFFFF,-1,0,0,0,100,100,1,0,1,16,4,8,40,40,160,1
+Style: SubtitleStyle,{font_family},{actual_font_size},{text_color},&H000000FF,{stroke_color},&H80000000,-1,0,0,0,100,100,1,0,1,{stroke_width},2,2,40,40,200,1
+Style: HookPillWhite,Montserrat,{title_font_size},&H00000000,&H000000FF,&H00FFFFFF,&H40000000,-1,0,0,0,100,100,1,0,1,16,4,8,40,40,160,1
+Style: HookNeonCyber,Montserrat,{title_font_size},&H0027F804,&H000000FF,&H00000000,&H0027F804,-1,0,0,0,100,100,1,0,1,8,6,8,40,40,160,1
+Style: HookGradientGold,Montserrat,{title_font_size},&H0000FFFF,&H000000FF,&H000080FF,&H000055AA,-1,0,0,0,100,100,1,0,1,10,5,8,40,40,160,1
+Style: HookYellowImpact,Impact,{int(title_font_size * 1.15)},&H0000E5FF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,1,0,1,14,5,8,40,40,160,1
+Style: HookMinimal,Montserrat,{title_font_size},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,1,0,1,4,2,8,40,40,160,1
+Style: TextStickerHeader,Montserrat,46,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,1,0,1,8,3,5,40,40,100,1
+Style: TextStickerNeon,Montserrat,40,&H0027F804,&H000000FF,&H00000000,&H0027F804,-1,0,0,0,100,100,1,0,1,6,4,5,40,40,100,1
+Style: TextStickerBadge,Montserrat,42,&H0000FFFF,&H000000FF,&H000080FF,&H000055AA,-1,0,0,0,100,100,1,0,1,8,4,5,40,40,100,1
+Style: TextStickerCallout,Montserrat,36,&H00E0E0E0,&H000000FF,&H00202020,&H80000000,0,0,0,0,100,100,1,0,1,6,2,5,40,40,100,1
+Style: TextStickerYellow,Impact,52,&H0000E5FF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,1,0,1,12,4,5,40,40,100,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -62,39 +103,88 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
     events = []
 
-    # 1. Top Hook Headline Bar (burned into top 1/3 of screen during first 5-10s or whole clip)
-    if hook_title:
+    # 1. Top Hook Headline Bar
+    if hook_title and title_visible:
         clean_title = hook_title.upper() if is_uppercase else hook_title
-        h_start = format_ass_time(0.0)
-        h_end = format_ass_time(min(8.0, end_time - start_time))
-        events.append(f"Dialogue: 1,{h_start},{h_end},HookStyle,,0,0,0,,{{\\pos(540, 220)\\bord14\\3c&H00FFFFFF&\\c&H00000000&}}{clean_title}")
+        h_start = format_ass_time(title_start_offset)
+        h_end = format_ass_time(title_start_offset + title_duration)
 
-    # 2. Chunk words into short 3-5 word animated subtitle lines
-    chunk_size = 4
-    for i in range(0, len(clip_words), chunk_size):
-        chunk = clip_words[i:i + chunk_size]
-        if not chunk:
+        style_map = {
+            "pill_white": ("HookPillWhite", f"{{\\pos({title_x}, {title_y})\\bord14\\3c&H00FFFFFF&\\c&H00000000&}}"),
+            "neon_cyber": ("HookNeonCyber", f"{{\\pos({title_x}, {title_y})\\bord8\\3c&H0027F804&\\c&H0027F804&\\shad4\\4c&H0027F804&}}"),
+            "gradient_gold": ("HookGradientGold", f"{{\\pos({title_x}, {title_y})\\bord12\\3c&H0000A5FF&\\c&H0000FFFF&\\shad3}}"),
+            "yellow_impact": ("HookYellowImpact", f"{{\\pos({title_x}, {title_y})\\bord14\\3c&H00000000&\\c&H0000E5FF&\\shad4}}"),
+            "minimal": ("HookMinimal", f"{{\\pos({title_x}, {title_y})\\bord4\\3c&H00000000&\\c&H00FFFFFF&\\shad2}}")
+        }
+
+        chosen_style, tag_prefix = style_map.get(title_style_type, style_map["pill_white"])
+        events.append(f"Dialogue: 2,{h_start},{h_end},{chosen_style},,0,0,0,,{tag_prefix}{clean_title}")
+
+    # 2. Text Layers (Stickers)
+    for idx, tl in enumerate(text_layers):
+        if not tl or not tl.get("text"):
             continue
+        tl_text = tl["text"].upper() if is_uppercase else tl["text"]
+        tl_pos = tl.get("pos", {"x": 50, "y": 60 + idx * 8})
+        tx = int((tl_pos.get("x", 50) / 100.0) * 1080)
+        ty = int((tl_pos.get("y", 60) / 100.0) * 1920)
+        tl_style = tl.get("style", "header")
 
-        chunk_start = max(0.0, chunk[0]["start"] - start_time)
-        chunk_end = max(chunk_start + 0.5, chunk[-1]["end"] - start_time)
+        tl_style_map = {
+            "header": ("TextStickerHeader", f"{{\\pos({tx}, {ty})\\c&H00FFFFFF&\\bord8\\3c&H00000000&}}"),
+            "neon_tag": ("TextStickerNeon", f"{{\\pos({tx}, {ty})\\c&H0027F804&\\bord6\\3c&H00000000&\\shad3\\4c&H0027F804&}}"),
+            "gradient_badge": ("TextStickerBadge", f"{{\\pos({tx}, {ty})\\c&H0000FFFF&\\bord8\\3c&H000080FF&}}"),
+            "callout_box": ("TextStickerCallout", f"{{\\pos({tx}, {ty})\\c&H00FFFFFF&\\bord6\\3c&H00181818&}}"),
+            "yellow_impact": ("TextStickerYellow", f"{{\\pos({tx}, {ty})\\c&H0000E5FF&\\bord12\\3c&H00000000&}}")
+        }
+        st_name, st_tag = tl_style_map.get(tl_style, tl_style_map["header"])
+        events.append(f"Dialogue: 2,{format_ass_time(0.0)},{format_ass_time(max(1.0, end_time - start_time))},{st_name},,0,0,0,,{st_tag}{tl_text}")
 
-        # For each word in chunk, highlight it while active
-        for active_idx, active_word in enumerate(chunk):
-            w_start = max(0.0, active_word["start"] - start_time)
-            w_end = max(w_start + 0.15, active_word["end"] - start_time)
+    # 3. Subtitles / Captions (Filter out excluded words)
+    is_caption_visible = caption_config.get("visible", True)
+    if is_caption_visible:
+        # Lọc ra các từ thuộc clip hiện tại và loại trừ các từ người dùng đã gạch bỏ
+        clip_words = []
+        for word_idx, w in enumerate(words):
+            if w["start"] >= start_time - 0.2 and w["end"] <= end_time + 0.5:
+                if word_idx not in excluded_set:
+                    clip_words.append(w)
 
-            line_parts = []
-            for idx, w in enumerate(chunk):
-                w_text = w["word"].upper() if is_uppercase else w["word"]
-                if idx == active_idx:
-                    # Highlight active word
-                    line_parts.append(f"{{\\c{highlight_color}\\t(0,100,\\fscx115\\fscy115)}}{w_text}{{\\rSubtitleStyle}}")
-                else:
-                    line_parts.append(w_text)
+        chunk_size = 4
+        if caption_preset == 'mrbeast':
+            chunk_size = 3
+        elif caption_preset == 'one_word':
+            chunk_size = 1
 
-            line_text = " ".join(line_parts)
-            events.append(f"Dialogue: 0,{format_ass_time(w_start)},{format_ass_time(w_end)},SubtitleStyle,,0,0,0,,{{\\pos(540, 1620)}}{line_text}")
+        for i in range(0, len(clip_words), chunk_size):
+            chunk = clip_words[i:i + chunk_size]
+            if not chunk:
+                continue
+
+            chunk_start = max(0.0, chunk[0]["start"] - start_time)
+            chunk_end = max(chunk_start + 0.5, chunk[-1]["end"] - start_time)
+
+            # For each word in chunk, highlight it while active
+            for active_idx, active_word in enumerate(chunk):
+                w_start = max(0.0, active_word["start"] - start_time)
+                w_end = max(w_start + 0.15, active_word["end"] - start_time)
+
+                line_parts = []
+                for idx, w in enumerate(chunk):
+                    w_text = w["word"].upper() if is_uppercase else w["word"]
+                    if idx == active_idx:
+                        # Highlight active word with preset effect
+                        if caption_preset == 'mrbeast':
+                            line_parts.append(f"{{\\c&H0000E5FF&\\t(0,80,\\fscx125\\fscy125)}}{w_text}{{\\rSubtitleStyle}}")
+                        elif caption_preset == 'cyberpunk':
+                            line_parts.append(f"{{\\c&H00FFFF00&\\3c&H00FF00FF&\\t(0,80,\\fscx115\\fscy115)}}{w_text}{{\\rSubtitleStyle}}")
+                        else: # Hormozi / Default
+                            line_parts.append(f"{{\\c{highlight_color}\\t(0,80,\\fscx118\\fscy118)}}{w_text}{{\\rSubtitleStyle}}")
+                    else:
+                        line_parts.append(w_text)
+
+                line_text = " ".join(line_parts)
+                events.append(f"Dialogue: 1,{format_ass_time(w_start)},{format_ass_time(w_end)},SubtitleStyle,,0,0,0,,{{\\pos({sub_x}, {sub_y})}}{line_text}")
 
     full_ass_content = ass_header + "\n".join(events) + "\n"
 
@@ -103,15 +193,3 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         f.write(full_ass_content)
 
     return output_ass_path
-
-if __name__ == "__main__":
-    from backend.config import BASE_DIR, OUTPUT_CLIPS_DIR
-    import json
-    res_path = OUTPUT_CLIPS_DIR / "pipeline_results.json"
-    if res_path.exists():
-        with open(res_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        words = data["transcript"]["words"]
-        out_ass = str(OUTPUT_CLIPS_DIR / "test_subtitles.ass")
-        generate_ass_subtitles(words, 10.0, 40.0, out_ass, hook_title="Luật Chất lượng Hàng hóa 2025")
-        print("Generated test ASS file:", out_ass)

@@ -1060,11 +1060,21 @@ export default function App() {
         body: JSON.stringify({
           clip_id: activeClip.id,
           custom_title: customTitle || activeClip.title,
+          title_config: titleConfig,
+          caption_config: captionConfig,
+          caption_preset: captionPreset,
           font_style: fontStyle,
+          brand_config: brandConfig,
+          text_layers: textLayers,
           sound_fx_markers: soundFxMarkers,
           auto_whoosh: autoWhoosh,
           auto_ding: autoDing,
-          brolls: brolls
+          brolls: brolls,
+          selected_bgm: selectedBgm,
+          bgm_volume: bgmVolume,
+          excluded_word_indices: Array.from(excludedWordIndices),
+          excluded_pause_indices: Array.from(excludedPauseIndices),
+          scenes: activeClip.scenes || []
         })
       });
       const resJson = await res.json();

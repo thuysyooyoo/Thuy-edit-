@@ -14,21 +14,21 @@ def build_sound_fx_audio_filter(
     sound_fx_markers: List[Dict],
     auto_whoosh: bool = True,
     auto_ding: bool = True,
-    keywords_timestamps: Optional[List[float]] = None
+    keywords_timestamps: Optional[List[float]] = None,
+    selected_bgm: Optional[str] = 'none',
+    bgm_volume: int = 25
 ) -> Dict:
     """
-    Xây dựng chuỗi FFmpeg audio inputs và complex filtergraph để hòa âm Sound FX:
+    Xây dựng chuỗi FFmpeg audio inputs và complex filtergraph để hòa âm Sound FX & BGM:
     - Auto Whoosh tại các điểm chuyển ý (đầu clip và mỗi 15-20s nếu có ngắt quãng)
     - Auto Ding/Pop tại các từ khóa nổi bật
     - Manual Sound FX markers do người dùng tự chèn
+    - Background Music (BGM) loop & volume
     """
-    inputs = []
-    
-    # Base list of FX to place
     events = []
     
     # 1. Manual Markers
-    for marker in sound_fx_markers:
+    for marker in (sound_fx_markers or []):
         rel_time = marker.get("time", 0.0)
         file_name = marker.get("file", "whoosh.wav")
         events.append({"time": rel_time, "file": file_name})
@@ -55,5 +55,7 @@ def build_sound_fx_audio_filter(
             
     return {
         "fx_files": fx_files,
-        "has_fx": len(fx_files) > 0
+        "has_fx": len(fx_files) > 0,
+        "bgm": selected_bgm if selected_bgm != 'none' else None,
+        "bgm_volume": max(0.05, min(1.0, (bgm_volume / 100.0) * 0.35))
     }

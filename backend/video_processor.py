@@ -57,18 +57,29 @@ def render_hd_vertical_clip(
     end_time: float,
     words: List[Dict],
     hook_title: Optional[str] = None,
+    title_config: Optional[Dict] = None,
+    caption_config: Optional[Dict] = None,
+    caption_preset: Optional[str] = 'hormozi',
     font_style: Optional[Dict] = None,
+    brand_config: Optional[Dict] = None,
+    text_layers: Optional[List[Dict]] = None,
     sound_fx_markers: Optional[List[Dict]] = None,
     auto_whoosh: bool = True,
     auto_ding: bool = True,
-    brolls: Optional[List[Dict]] = None
+    brolls: Optional[List[Dict]] = None,
+    selected_bgm: Optional[str] = 'none',
+    bgm_volume: int = 25,
+    excluded_word_indices: Optional[List[int]] = None,
+    scenes: Optional[List[Dict]] = None
 ) -> str:
     """
-    🔥 PHIÊN 3 FLAGSHIP RENDER ENGINE:
+    🔥 PHIÊN 3 FLAGSHIP WYSIWYG HD 9:16 RENDER ENGINE:
     - Nhận diện khuôn mặt người nói & Auto-Crop 9:16 (Face Tracker).
-    - Đốt phụ đề Karaoke ASS từng chữ + Tiêu đề Hook đỉnh video.
-    - Tự động / Thủ công hòa âm Sound FX (Whoosh, Ding...).
-    - Xuất video Full HD chuẩn 1080x1920 sắc nét siêu tốc.
+    - Đốt Tiêu đề Hook theo đúng Style, vị trí, kích thước, thời lượng hiển thị.
+    - Đốt phụ đề Karaoke ASS chuẩn font, màu sắc, vị trí, preset và loại bỏ từ đã cắt.
+    - Đốt Nhãn dán Chữ (Text Layers) đúng vị trí và Style.
+    - Tự động / Thủ công hòa âm Sound FX & BGM Nhạc nền.
+    - Xuất video Full HD chuẩn 1080x1920 siêu tốc và sắc nét tuyệt đối.
     """
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     duration = max(1.0, end_time - start_time)
@@ -82,7 +93,7 @@ def render_hd_vertical_clip(
         print(f"FaceTracker warning: {e}. Fallback to center crop.")
         crop_filter = "crop=ih*9/16:ih:(iw-ih*9/16)/2:0"
 
-    # 2. Generate ASS Subtitles & Hook Bar
+    # 2. Generate ASS Subtitles, Hook Title & Text Layers
     temp_dir = BASE_DIR / "temp"
     temp_dir.mkdir(exist_ok=True)
     ass_path = str(temp_dir / f"subs_{int(start_time)}.ass")
@@ -92,13 +103,18 @@ def render_hd_vertical_clip(
         end_time=end_time,
         output_ass_path=ass_path,
         hook_title=hook_title,
-        font_style=font_style
+        title_config=title_config,
+        caption_config=caption_config,
+        caption_preset=caption_preset,
+        font_style=font_style,
+        text_layers=text_layers,
+        excluded_word_indices=excluded_word_indices
     )
 
     # Escape path for FFmpeg filter on Windows
     escaped_ass_path = ass_path.replace("\\", "/").replace(":", "\\:")
 
-    # 3. Sound FX Audio Mixing
+    # 3. Sound FX & BGM Audio Mixing
     keywords_times = [w["start"] for w in words if start_time <= w["start"] <= end_time and len(w["word"]) >= 5]
     audio_fx_data = build_sound_fx_audio_filter(
         clip_start_time=start_time,
@@ -106,7 +122,9 @@ def render_hd_vertical_clip(
         sound_fx_markers=sound_fx_markers or [],
         auto_whoosh=auto_whoosh,
         auto_ding=auto_ding,
-        keywords_timestamps=keywords_times
+        keywords_timestamps=keywords_times,
+        selected_bgm=selected_bgm,
+        bgm_volume=bgm_volume
     )
 
     # 4. Assemble FFmpeg Command (Fast Seeking & High Speed Multi-threaded Encoding)

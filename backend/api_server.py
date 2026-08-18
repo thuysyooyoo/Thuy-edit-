@@ -56,11 +56,21 @@ class TranscriptCutRequest(BaseModel):
 class HdExportRequest(BaseModel):
     clip_id: int
     custom_title: Optional[str] = None
+    title_config: Optional[Dict] = None
+    caption_config: Optional[Dict] = None
+    caption_preset: Optional[str] = 'hormozi'
     font_style: Optional[Dict] = None
+    brand_config: Optional[Dict] = None
+    text_layers: Optional[List[Dict]] = None
     sound_fx_markers: Optional[List[Dict]] = None
     auto_whoosh: bool = True
     auto_ding: bool = True
     brolls: Optional[List[Dict]] = None
+    selected_bgm: Optional[str] = 'none'
+    bgm_volume: int = 25
+    excluded_word_indices: List[int] = []
+    excluded_pause_indices: List[int] = []
+    scenes: Optional[List[Dict]] = None
 
 class CopilotChatRequest(BaseModel):
     message: str
@@ -293,11 +303,20 @@ def export_hd_vertical_video(req: HdExportRequest):
             end_time=target_clip["end_time"],
             words=words,
             hook_title=title,
+            title_config=req.title_config,
+            caption_config=req.caption_config,
+            caption_preset=req.caption_preset,
             font_style=req.font_style,
+            brand_config=req.brand_config,
+            text_layers=req.text_layers,
             sound_fx_markers=req.sound_fx_markers,
             auto_whoosh=req.auto_whoosh,
             auto_ding=req.auto_ding,
-            brolls=req.brolls
+            brolls=req.brolls,
+            selected_bgm=req.selected_bgm,
+            bgm_volume=req.bgm_volume,
+            excluded_word_indices=req.excluded_word_indices,
+            scenes=req.scenes
         )
         return {
             "success": True,
