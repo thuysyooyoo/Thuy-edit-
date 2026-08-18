@@ -511,6 +511,7 @@ export default function OpusCanvasPreview({
     >
       {/* 9:16 Frame Container */}
       <div 
+        id="opus-canvas-container"
         ref={canvasContainerRef}
         className={`relative bg-black rounded-xl shadow-2xl overflow-hidden border border-[#2f334a] flex items-center justify-center transition-all duration-300 ${
           aspectRatio === '9:16'
@@ -715,7 +716,7 @@ export default function OpusCanvasPreview({
               'Logo'
             )}
 
-            <div className="relative p-1 rounded-xl group-hover:ring-1 group-hover:ring-indigo-400/60 group-hover:bg-black/40 transition-all flex items-center gap-1.5">
+            <div id="brand-logo-capture" className="relative p-1 rounded-xl group-hover:ring-1 group-hover:ring-indigo-400/60 group-hover:bg-black/40 transition-all flex items-center gap-1.5">
               {brandConfig?.logoUrl ? (
                 <img 
                   src={brandConfig.logoUrl} 
@@ -882,41 +883,44 @@ export default function OpusCanvasPreview({
               </div>
             ) : (
               <div 
+                id="title-card-capture"
                 style={{ 
                   paddingTop: `${titleConfig?.paddingY ?? 6}px`, 
                   paddingBottom: `${titleConfig?.paddingY ?? 6}px` 
                 }}
-                className="relative inline-block w-full group-hover:scale-105 transition-transform"
+                className="relative inline-block w-full"
               >
                 {titleConfig?.style === 'neon_cyber' ? (
                   <div className="bg-black/90 text-emerald-300 font-black text-xs sm:text-sm px-3.5 py-1.5 rounded-xl border-2 border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.6)] uppercase tracking-tight break-words leading-snug">
                     <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
-                    <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-emerald-300 transition-opacity" />
+                    <Edit3 className="export-ignore-handle w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-emerald-300 transition-opacity" />
                   </div>
                 ) : titleConfig?.style === 'gradient_gold' ? (
                   <div className="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-black font-black text-xs sm:text-sm px-3.5 py-1.5 rounded-xl shadow-2xl border border-yellow-200 uppercase tracking-tight break-words leading-snug">
                     <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
-                    <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-black transition-opacity" />
+                    <Edit3 className="export-ignore-handle w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-black transition-opacity" />
                   </div>
                 ) : titleConfig?.style === 'yellow_impact' ? (
                   <div className="text-yellow-300 font-black text-sm sm:text-base px-3 py-1 drop-shadow-[0_4px_8px_rgba(0,0,0,1)] uppercase tracking-tight break-words leading-snug">
                     <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
-                    <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-yellow-300 transition-opacity" />
+                    <Edit3 className="export-ignore-handle w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-yellow-300 transition-opacity" />
                   </div>
                 ) : titleConfig?.style === 'minimal' ? (
                   <div className="bg-black/60 backdrop-blur-md text-white font-bold text-xs sm:text-sm px-3.5 py-1.5 rounded-xl border border-white/20 shadow-lg uppercase tracking-tight break-words leading-snug">
                     <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
-                    <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-white transition-opacity" />
+                    <Edit3 className="export-ignore-handle w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-white transition-opacity" />
                   </div>
                 ) : (
                   <div className="bg-white/95 hover:bg-white text-black font-black text-xs sm:text-sm px-3.5 py-1.5 rounded-lg shadow-lg inline-block leading-snug tracking-tight uppercase border border-white break-words">
                     <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
-                    <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-slate-700 transition-opacity" />
+                    <Edit3 className="export-ignore-handle w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-slate-700 transition-opacity" />
                   </div>
                 )}
 
                 {/* 8-Directional Transform Handles */}
-                {renderTransformBox('title', null, titleConfig)}
+                <div className="export-ignore-handle">
+                  {renderTransformBox('title', null, titleConfig)}
+                </div>
               </div>
             )}
           </div>

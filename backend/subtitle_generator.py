@@ -35,7 +35,9 @@ def generate_ass_subtitles(
     font_style: Optional[Dict] = None,
     brand_config: Optional[Dict] = None,
     text_layers: Optional[List[Dict]] = None,
-    excluded_word_indices: Optional[List[int]] = None
+    excluded_word_indices: Optional[List[int]] = None,
+    has_title_card_image: bool = False,
+    has_brand_logo_image: bool = False
 ) -> str:
     """
     🔥 WYSIWYG SUBTITLE & OVERLAY GENERATOR (Chuẩn 1080x1920 Full HD):
@@ -106,8 +108,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
     events = []
 
-    # 1. Top Hook Headline Bar
-    if hook_title and title_visible:
+    # 1. Top Hook Headline Bar (Only fallback to ASS if not rendered as PNG Image Overlay)
+    if hook_title and title_visible and not has_title_card_image:
         clean_title = hook_title.upper() if is_uppercase else hook_title
         h_start = format_ass_time(title_start_offset)
         h_end = format_ass_time(title_start_offset + title_duration)
@@ -143,8 +145,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         st_name, st_tag = tl_style_map.get(tl_style, tl_style_map["header"])
         events.append(f"Dialogue: 2,{format_ass_time(0.0)},{format_ass_time(max(1.0, end_time - start_time))},{st_name},,0,0,0,,{st_tag}{tl_text}")
 
-    # 3. Brand Logo Watermark Text (if showLogo and logoText)
-    if brand_config and brand_config.get("showLogo", False):
+    # 3. Brand Logo Watermark Text (Only fallback if not rendered as PNG Image Overlay)
+    if brand_config and brand_config.get("showLogo", False) and not has_brand_logo_image:
         logo_text = (brand_config.get("logoText") or "").strip()
         if logo_text:
             l_pos = brand_config.get("pos", {"x": 82, "y": 6})

@@ -56,6 +56,8 @@ class TranscriptCutRequest(BaseModel):
 class HdExportRequest(BaseModel):
     clip_id: int
     custom_title: Optional[str] = None
+    title_card_image: Optional[str] = None
+    brand_logo_image: Optional[str] = None
     title_config: Optional[Dict] = None
     caption_config: Optional[Dict] = None
     caption_preset: Optional[str] = 'hormozi'
@@ -309,6 +311,8 @@ def export_hd_vertical_video(req: HdExportRequest):
             end_time=clip_end,
             words=words,
             hook_title=title,
+            title_card_image=req.title_card_image,
+            brand_logo_image=req.brand_logo_image,
             title_config=req.title_config,
             caption_config=req.caption_config,
             caption_preset=req.caption_preset,

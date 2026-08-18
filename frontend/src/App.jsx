@@ -10,6 +10,7 @@ import ClipPreviewModal from './components/ClipPreviewModal';
 import BrollPickerModal from './components/BrollPickerModal';
 import SoundFxPickerModal from './components/SoundFxPickerModal';
 import AICopilotDrawer from './components/AICopilotDrawer';
+import { toPng } from 'html-to-image';
 import { RefreshCw } from 'lucide-react';
 
 export default function App() {
@@ -1054,12 +1055,47 @@ export default function App() {
     setIsExportingHd(true);
 
     try {
+      // 📸 Chụp Snapshot Đồ Họa độ phân giải cao chuẩn 1080x1920 (WYSIWYG)
+      const canvasContainer = document.getElementById('opus-canvas-container');
+      const containerWidth = canvasContainer ? canvasContainer.getBoundingClientRect().width : 340;
+      const pixelRatio = Math.max(1.5, Math.min(4.5, 1080 / containerWidth));
+
+      let titleCardPng = null;
+      const titleEl = document.getElementById('title-card-capture');
+      if (titleEl && titleConfig?.visible !== false) {
+        try {
+          titleCardPng = await toPng(titleEl, {
+            pixelRatio,
+            backgroundColor: 'transparent',
+            filter: (node) => !node.classList?.contains('export-ignore-handle') && !node.classList?.contains('element-action-toolbar')
+          });
+        } catch (e) {
+          console.warn('Error capturing title card snapshot:', e);
+        }
+      }
+
+      let brandLogoPng = null;
+      const logoEl = document.getElementById('brand-logo-capture');
+      if (logoEl && brandConfig?.showLogo) {
+        try {
+          brandLogoPng = await toPng(logoEl, {
+            pixelRatio,
+            backgroundColor: 'transparent',
+            filter: (node) => !node.classList?.contains('export-ignore-handle') && !node.classList?.contains('element-action-toolbar')
+          });
+        } catch (e) {
+          console.warn('Error capturing brand logo snapshot:', e);
+        }
+      }
+
       const res = await fetch('http://127.0.0.1:8000/api/export-hd-clip', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clip_id: activeClip.id,
           custom_title: customTitle || activeClip.title,
+          title_card_image: titleCardPng,
+          brand_logo_image: brandLogoPng,
           title_config: titleConfig,
           caption_config: captionConfig,
           caption_preset: captionPreset,
