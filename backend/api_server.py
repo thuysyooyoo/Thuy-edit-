@@ -107,6 +107,7 @@ def _background_run_pipeline(input_source: str, gemini_api_key: Optional[str] = 
         current_job["message"] = "AI đang đánh giá độ viral và cấu trúc video 1-4 phút..."
         viral_results = analyze_viral_clips(transcript_result, api_key=gemini_api_key)
         clips = viral_results.get("clips", [])
+        api_warning = viral_results.get("api_warning")
 
         current_job["progress"] = 90
         current_job["stage"] = "Bước 5/5: Xuất video clips"
@@ -118,7 +119,8 @@ def _background_run_pipeline(input_source: str, gemini_api_key: Optional[str] = 
             "transcript": transcript_result,
             "clean_result": clean_result,
             "viral_clips": clips,
-            "exported_files": exported_files
+            "exported_files": exported_files,
+            "api_warning": api_warning
         }
         with open(RESULTS_FILE, "w", encoding="utf-8") as fp:
             json.dump(results, fp, ensure_ascii=False, indent=2)
@@ -139,8 +141,6 @@ def _background_run_pipeline(input_source: str, gemini_api_key: Optional[str] = 
 @app.post("/api/process")
 def process_video_endpoint(req: ProcessRequest, background_tasks: BackgroundTasks):
     global current_job
-    if current_job["status"] == "processing":
-        raise HTTPException(status_code=400, detail="Một tác vụ khác đang được xử lý. Vui lòng đợi.")
     
     current_job = {
         "status": "processing",

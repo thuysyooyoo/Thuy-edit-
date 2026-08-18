@@ -204,19 +204,47 @@ export default function App() {
 
   const detectedPausesCount = detectedPausesList.length;
 
-  // Real-time Skip Intervals
+  // Real-time Skip Intervals (Tự động xóa cả từ và khoảng trắng/lặng phía sau từ bị gạch bỏ)
   const skipIntervals = useMemo(() => {
+    if (!currentClipWords.length) return [];
+    
+    const excludedList = Array.from(excludedWordIndices)
+      .filter(idx => idx >= 0 && idx < currentClipWords.length)
+      .sort((a, b) => a - b);
+      
     const intervals = [];
 
-    excludedWordIndices.forEach((idx) => {
-      if (currentClipWords[idx]) {
-        intervals.push({
-          start: currentClipWords[idx].start,
-          end: currentClipWords[idx].end
-        });
-      }
-    });
+    // Gom cụm các từ bị xóa liền kề và lấy mốc kết thúc đến đầu từ tiếp theo được giữ lại
+    if (excludedList.length > 0) {
+      let chunkStartIdx = excludedList[0];
+      let chunkEndIdx = excludedList[0];
 
+      for (let i = 1; i < excludedList.length; i++) {
+        if (excludedList[i] === chunkEndIdx + 1) {
+          chunkEndIdx = excludedList[i];
+        } else {
+          const start = currentClipWords[chunkStartIdx].start;
+          const nextIncludedIdx = chunkEndIdx + 1;
+          const end = nextIncludedIdx < currentClipWords.length
+            ? currentClipWords[nextIncludedIdx].start
+            : currentClipWords[chunkEndIdx].end + 0.3;
+
+          intervals.push({ start, end });
+          chunkStartIdx = excludedList[i];
+          chunkEndIdx = excludedList[i];
+        }
+      }
+
+      const start = currentClipWords[chunkStartIdx].start;
+      const nextIncludedIdx = chunkEndIdx + 1;
+      const end = nextIncludedIdx < currentClipWords.length
+        ? currentClipWords[nextIncludedIdx].start
+        : currentClipWords[chunkEndIdx].end + 0.3;
+
+      intervals.push({ start, end });
+    }
+
+    // Khoảng lặng explicit bị gạch bỏ
     excludedPauseIndices.forEach((pIdx) => {
       const targetPause = detectedPausesList.find(p => p.index === pIdx);
       if (targetPause) {
@@ -227,8 +255,23 @@ export default function App() {
       }
     });
 
+    // Merge các khoảng nhảy gối nhau
     intervals.sort((a, b) => a.start - b.start);
-    return intervals;
+    const merged = [];
+    intervals.forEach(curr => {
+      if (!merged.length) {
+        merged.push({ ...curr });
+      } else {
+        const last = merged[merged.length - 1];
+        if (curr.start <= last.end + 0.05) {
+          last.end = Math.max(last.end, curr.end);
+        } else {
+          merged.push({ ...curr });
+        }
+      }
+    });
+
+    return merged;
   }, [excludedWordIndices, excludedPauseIndices, currentClipWords, detectedPausesList]);
 
   // Poll job status when processing

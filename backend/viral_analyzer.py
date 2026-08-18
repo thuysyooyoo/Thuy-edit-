@@ -143,10 +143,13 @@ def analyze_viral_clips(transcript_data: dict, api_key: str = None) -> dict:
                     snapped_clips.append(c)
 
                 print(f"[ViralAnalyzer] ✅ AI Gemini ({used_model}) đã hoàn thiện {len(snapped_clips)} clip Hook-Problem-Solution!", flush=True)
-                return {"clips": snapped_clips}
+                return {"clips": snapped_clips, "api_warning": None}
 
         except Exception as e:
-            print(f"[ViralAnalyzer] ❌ Lỗi Gemini: {e}. Chuyển sang Fallback...", flush=True)
+            err_str = str(e).lower()
+            is_quota_exhausted = any(k in err_str for k in ['quota', 'rate', '429', 'resource_exhausted', 'limit', 'exhausted'])
+            quota_msg = "⚠️ Gemini API Key của bạn đã hết hạn mức / token (Quota Exceeded / Rate Limit). Hệ thống đã tự động kích hoạt bộ phân tích AI cục bộ để tiếp tục tạo clip Hook - Problem - Solution mà không bị gián đoạn!" if is_quota_exhausted else f"⚠️ Lỗi kết nối Gemini AI ({e}). Đã kích hoạt bộ phân tích cục bộ."
+            print(f"[ViralAnalyzer] ❌ {quota_msg}", flush=True)
 
     # --- FALLBACK 1 - 4 MINUTES SEGMENTATION ---
     clips = []
@@ -189,4 +192,5 @@ def analyze_viral_clips(transcript_data: dict, api_key: str = None) -> dict:
             current_start = seg["end"]
             current_texts = []
 
-    return {"clips": clips}
+    quota_msg = "⚠️ Lưu ý: Đã dùng bộ phân tích AI cục bộ để tạo các clip Hook - Problem - Solution (Do không có hoặc hết hạn mức API Key)."
+    return {"clips": clips, "api_warning": quota_msg}
