@@ -127,14 +127,14 @@ def render_hd_vertical_clip(
         bgm_volume=bgm_volume
     )
 
-    # 4. Assemble FFmpeg Command (Fast Seeking & High Speed Multi-threaded Encoding)
+    # 4. Assemble FFmpeg Command (Fast Seeking & Exact Output Duration)
     vf_string = f"{crop_filter},scale=1080:1920:flags=bicubic,subtitles='{escaped_ass_path}'"
 
     cmd = [
         FFMPEG_PATH, "-y",
         "-ss", str(start_time),
-        "-t", str(duration),
-        "-i", input_path
+        "-i", input_path,
+        "-t", str(duration)
     ]
 
     fx_files = audio_fx_data.get("fx_files", [])
@@ -166,6 +166,7 @@ def render_hd_vertical_clip(
             "-c:a", "aac",
             "-b:a", "192k",
             "-pix_fmt", "yuv420p",
+            "-t", str(duration),
             output_path
         ])
     else:
@@ -179,6 +180,7 @@ def render_hd_vertical_clip(
             "-c:a", "aac",
             "-b:a", "192k",
             "-pix_fmt", "yuv420p",
+            "-t", str(duration),
             output_path
         ])
 

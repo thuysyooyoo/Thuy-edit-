@@ -294,13 +294,19 @@ def export_hd_vertical_video(req: HdExportRequest):
     title = req.custom_title or target_clip.get("title", f"clip_{req.clip_id}")
     safe_name = f"HD_9x16_clip_{req.clip_id}.mp4"
     out_file = str(OUTPUT_CLIPS_DIR / safe_name)
+
+    clip_start = target_clip["start_time"]
+    clip_end = target_clip["end_time"]
+    if req.scenes and len(req.scenes) > 0:
+        clip_start = req.scenes[0]["start_time"]
+        clip_end = req.scenes[-1]["end_time"]
     
     try:
         render_hd_vertical_clip(
             input_path=video_path,
             output_path=out_file,
-            start_time=target_clip["start_time"],
-            end_time=target_clip["end_time"],
+            start_time=clip_start,
+            end_time=clip_end,
             words=words,
             hook_title=title,
             title_config=req.title_config,
