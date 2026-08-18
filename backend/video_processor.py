@@ -107,6 +107,7 @@ def render_hd_vertical_clip(
         caption_config=caption_config,
         caption_preset=caption_preset,
         font_style=font_style,
+        brand_config=brand_config,
         text_layers=text_layers,
         excluded_word_indices=excluded_word_indices
     )

@@ -33,6 +33,7 @@ def generate_ass_subtitles(
     caption_config: Optional[Dict] = None,
     caption_preset: Optional[str] = 'hormozi',
     font_style: Optional[Dict] = None,
+    brand_config: Optional[Dict] = None,
     text_layers: Optional[List[Dict]] = None,
     excluded_word_indices: Optional[List[int]] = None
 ) -> str:
@@ -41,11 +42,13 @@ def generate_ass_subtitles(
     - Đốt Tiêu đề Hook theo đúng Style (Pill White, Neon, Gradient Gold, Yellow Impact, Minimal), vị trí và thời lượng.
     - Đốt Phụ đề theo đúng Preset (Hormozi, MrBeast, Karaoke, Cyberpunk), Font, Cỡ, Màu sắc, Vị trí kéo thả.
     - Đốt các Nhãn dán Chữ (Text Layers) đúng vị trí và Style.
+    - Đốt Watermark Logo thương hiệu.
     - Lọc bỏ 100% các từ đã bị xóa / gạch bỏ (excluded_word_indices).
     """
     font_style = font_style or {}
     title_config = title_config or {}
     caption_config = caption_config or {}
+    brand_config = brand_config or {}
     text_layers = text_layers or []
     excluded_set = set(excluded_word_indices or [])
 
@@ -85,15 +88,15 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: SubtitleStyle,{font_family},{actual_font_size},{text_color},&H000000FF,{stroke_color},&H80000000,-1,0,0,0,100,100,1,0,1,{stroke_width},2,2,40,40,200,1
-Style: HookPillWhite,Montserrat,{title_font_size},&H00000000,&H000000FF,&H00FFFFFF,&H40000000,-1,0,0,0,100,100,1,0,1,16,4,8,40,40,160,1
-Style: HookNeonCyber,Montserrat,{title_font_size},&H0027F804,&H000000FF,&H00000000,&H0027F804,-1,0,0,0,100,100,1,0,1,8,6,8,40,40,160,1
-Style: HookGradientGold,Montserrat,{title_font_size},&H0000FFFF,&H000000FF,&H000080FF,&H000055AA,-1,0,0,0,100,100,1,0,1,10,5,8,40,40,160,1
-Style: HookYellowImpact,Impact,{int(title_font_size * 1.15)},&H0000E5FF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,1,0,1,14,5,8,40,40,160,1
-Style: HookMinimal,Montserrat,{title_font_size},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,1,0,1,4,2,8,40,40,160,1
+Style: SubtitleStyle,{font_family},{actual_font_size},{text_color},&H000000FF,{stroke_color},&H80000000,-1,0,0,0,100,100,1,0,1,{stroke_width},2,5,40,40,200,1
+Style: HookPillWhite,Montserrat,{title_font_size},&H00000000,&H000000FF,&H00FFFFFF,&H40000000,-1,0,0,0,100,100,1,0,1,16,4,5,40,40,160,1
+Style: HookNeonCyber,Montserrat,{title_font_size},&H0027F804,&H000000FF,&H00000000,&H0027F804,-1,0,0,0,100,100,1,0,1,8,6,5,40,40,160,1
+Style: HookGradientGold,Montserrat,{title_font_size},&H00000000,&H000000FF,&H0000D7FF,&H000055AA,-1,0,0,0,100,100,1,0,1,12,5,5,40,40,160,1
+Style: HookYellowImpact,Impact,{int(title_font_size * 1.15)},&H0000E5FF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,1,0,1,14,5,5,40,40,160,1
+Style: HookMinimal,Montserrat,{title_font_size},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,1,0,1,4,2,5,40,40,160,1
 Style: TextStickerHeader,Montserrat,46,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,1,0,1,8,3,5,40,40,100,1
 Style: TextStickerNeon,Montserrat,40,&H0027F804,&H000000FF,&H00000000,&H0027F804,-1,0,0,0,100,100,1,0,1,6,4,5,40,40,100,1
-Style: TextStickerBadge,Montserrat,42,&H0000FFFF,&H000000FF,&H000080FF,&H000055AA,-1,0,0,0,100,100,1,0,1,8,4,5,40,40,100,1
+Style: TextStickerBadge,Montserrat,42,&H00000000,&H000000FF,&H0000D7FF,&H000055AA,-1,0,0,0,100,100,1,0,1,8,4,5,40,40,100,1
 Style: TextStickerCallout,Montserrat,36,&H00E0E0E0,&H000000FF,&H00202020,&H80000000,0,0,0,0,100,100,1,0,1,6,2,5,40,40,100,1
 Style: TextStickerYellow,Impact,52,&H0000E5FF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,1,0,1,12,4,5,40,40,100,1
 
@@ -110,11 +113,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         h_end = format_ass_time(title_start_offset + title_duration)
 
         style_map = {
-            "pill_white": ("HookPillWhite", f"{{\\pos({title_x}, {title_y})\\bord14\\3c&H00FFFFFF&\\c&H00000000&}}"),
-            "neon_cyber": ("HookNeonCyber", f"{{\\pos({title_x}, {title_y})\\bord8\\3c&H0027F804&\\c&H0027F804&\\shad4\\4c&H0027F804&}}"),
-            "gradient_gold": ("HookGradientGold", f"{{\\pos({title_x}, {title_y})\\bord12\\3c&H0000A5FF&\\c&H0000FFFF&\\shad3}}"),
-            "yellow_impact": ("HookYellowImpact", f"{{\\pos({title_x}, {title_y})\\bord14\\3c&H00000000&\\c&H0000E5FF&\\shad4}}"),
-            "minimal": ("HookMinimal", f"{{\\pos({title_x}, {title_y})\\bord4\\3c&H00000000&\\c&H00FFFFFF&\\shad2}}")
+            "pill_white": ("HookPillWhite", f"{{\\an5\\pos({title_x}, {title_y})\\bord14\\3c&H00FFFFFF&\\c&H00000000&\\shad3\\4c&H40000000&}}"),
+            "neon_cyber": ("HookNeonCyber", f"{{\\an5\\pos({title_x}, {title_y})\\bord8\\3c&H0027F804&\\c&H0027F804&\\shad4\\4c&H0027F804&}}"),
+            "gradient_gold": ("HookGradientGold", f"{{\\an5\\pos({title_x}, {title_y})\\bord14\\3c&H0000D7FF&\\c&H00000000&\\shad3}}"),
+            "yellow_impact": ("HookYellowImpact", f"{{\\an5\\pos({title_x}, {title_y})\\bord14\\3c&H00000000&\\c&H0000E5FF&\\shad4}}"),
+            "minimal": ("HookMinimal", f"{{\\an5\\pos({title_x}, {title_y})\\bord4\\3c&H00000000&\\c&H00FFFFFF&\\shad2}}")
         }
 
         chosen_style, tag_prefix = style_map.get(title_style_type, style_map["pill_white"])
@@ -131,16 +134,25 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         tl_style = tl.get("style", "header")
 
         tl_style_map = {
-            "header": ("TextStickerHeader", f"{{\\pos({tx}, {ty})\\c&H00FFFFFF&\\bord8\\3c&H00000000&}}"),
-            "neon_tag": ("TextStickerNeon", f"{{\\pos({tx}, {ty})\\c&H0027F804&\\bord6\\3c&H00000000&\\shad3\\4c&H0027F804&}}"),
-            "gradient_badge": ("TextStickerBadge", f"{{\\pos({tx}, {ty})\\c&H0000FFFF&\\bord8\\3c&H000080FF&}}"),
-            "callout_box": ("TextStickerCallout", f"{{\\pos({tx}, {ty})\\c&H00FFFFFF&\\bord6\\3c&H00181818&}}"),
-            "yellow_impact": ("TextStickerYellow", f"{{\\pos({tx}, {ty})\\c&H0000E5FF&\\bord12\\3c&H00000000&}}")
+            "header": ("TextStickerHeader", f"{{\\an5\\pos({tx}, {ty})\\c&H00FFFFFF&\\bord8\\3c&H00000000&}}"),
+            "neon_tag": ("TextStickerNeon", f"{{\\an5\\pos({tx}, {ty})\\c&H0027F804&\\bord6\\3c&H00000000&\\shad3\\4c&H0027F804&}}"),
+            "gradient_badge": ("TextStickerBadge", f"{{\\an5\\pos({tx}, {ty})\\c&H00000000&\\bord8\\3c&H0000D7FF&}}"),
+            "callout_box": ("TextStickerCallout", f"{{\\an5\\pos({tx}, {ty})\\c&H00FFFFFF&\\bord6\\3c&H00181818&}}"),
+            "yellow_impact": ("TextStickerYellow", f"{{\\an5\\pos({tx}, {ty})\\c&H0000E5FF&\\bord12\\3c&H00000000&}}")
         }
         st_name, st_tag = tl_style_map.get(tl_style, tl_style_map["header"])
         events.append(f"Dialogue: 2,{format_ass_time(0.0)},{format_ass_time(max(1.0, end_time - start_time))},{st_name},,0,0,0,,{st_tag}{tl_text}")
 
-    # 3. Subtitles / Captions (Filter out excluded words)
+    # 3. Brand Logo Watermark Text (if showLogo and logoText)
+    if brand_config and brand_config.get("showLogo", False):
+        logo_text = (brand_config.get("logoText") or "").strip()
+        if logo_text:
+            l_pos = brand_config.get("pos", {"x": 82, "y": 6})
+            lx = int((l_pos.get("x", 82) / 100.0) * 1080)
+            ly = int((l_pos.get("y", 6) / 100.0) * 1920)
+            events.append(f"Dialogue: 2,{format_ass_time(0.0)},{format_ass_time(max(1.0, end_time - start_time))},TextStickerHeader,,0,0,0,,{{\\an5\\pos({lx}, {ly})\\c&H60FFFFFF&\\bord4\\3c&H60000000&}}{logo_text.upper() if is_uppercase else logo_text}")
+
+    # 4. Subtitles / Captions (Filter out excluded words)
     is_caption_visible = caption_config.get("visible", True)
     if is_caption_visible:
         # Lọc ra các từ thuộc clip hiện tại và loại trừ các từ người dùng đã gạch bỏ
@@ -184,7 +196,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         line_parts.append(w_text)
 
                 line_text = " ".join(line_parts)
-                events.append(f"Dialogue: 1,{format_ass_time(w_start)},{format_ass_time(w_end)},SubtitleStyle,,0,0,0,,{{\\pos({sub_x}, {sub_y})}}{line_text}")
+                events.append(f"Dialogue: 1,{format_ass_time(w_start)},{format_ass_time(w_end)},SubtitleStyle,,0,0,0,,{{\\an5\\pos({sub_x}, {sub_y})}}{line_text}")
 
     full_ass_content = ass_header + "\n".join(events) + "\n"
 
