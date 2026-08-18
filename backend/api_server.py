@@ -72,6 +72,7 @@ class HdExportRequest(BaseModel):
     bgm_volume: int = 25
     excluded_word_indices: List[int] = []
     excluded_pause_indices: List[int] = []
+    skip_intervals: Optional[List[Dict]] = None
     scenes: Optional[List[Dict]] = None
 
 class CopilotChatRequest(BaseModel):
@@ -326,6 +327,7 @@ def export_hd_vertical_video(req: HdExportRequest):
             selected_bgm=req.selected_bgm,
             bgm_volume=req.bgm_volume,
             excluded_word_indices=req.excluded_word_indices,
+            skip_intervals=req.skip_intervals,
             scenes=req.scenes
         )
         return {

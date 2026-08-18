@@ -819,32 +819,36 @@ export default function OpusCanvasPreview({
         {/* ═════════════════════════════════════════════════════════════════════════════════
             3. TOP HOOK HEADLINE OVERLAY (KÉO RỘNG KHUNG, KÉO CAO, ZOOM GÓC, SỬA & XÓA, ĐỒNG BỘ TIMELINE)
            ═════════════════════════════════════════════════════════════════════════════════ */}
-        {titleConfig?.visible !== false && (
-          editingTitle ||
-          (
-            titleConfig?.startTime === undefined ||
-            (
-              ((currentTime >= clipStart ? (currentTime - clipStart) : currentTime) >= ((titleConfig.startTime ?? 0) - 0.05)) &&
-              ((currentTime >= clipStart ? (currentTime - clipStart) : currentTime) <= ((titleConfig.startTime ?? 0) + (titleConfig.duration ?? 6) + 0.05))
-            )
-          )
-        ) && (
-          <div 
-            style={{
-              top: `${titleConfig?.pos?.y ?? 10}%`,
-              left: `${titleConfig?.pos?.x ?? 50}%`,
-              transform: `translate(-50%, -50%) scale(${(titleConfig?.scale ?? 100) / 100})`,
-              width: `${titleConfig?.boxWidth ?? 280}px`,
-              maxWidth: '96%'
-            }}
-            onMouseDown={(e) => !editingTitle && startDragging(e, 'title', null, titleConfig?.pos || { x: 50, y: 10 })}
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedElement({ type: 'title', id: null });
-            }}
-            className="absolute z-35 cursor-move group select-none text-center"
-            title="Kéo di chuyển, kéo các cạnh để chỉnh độ rộng/cao của khung, kéo góc để zoom"
-          >
+        {(() => {
+          const isTitleInTimeRange = titleConfig?.startTime === undefined || (
+            ((currentTime >= clipStart ? (currentTime - clipStart) : currentTime) >= ((titleConfig.startTime ?? 0) - 0.05)) &&
+            ((currentTime >= clipStart ? (currentTime - clipStart) : currentTime) <= ((titleConfig.startTime ?? 0) + (titleConfig.duration ?? 6) + 0.05))
+          );
+          const isTitleVisible = titleConfig?.visible !== false && (editingTitle || isTitleInTimeRange);
+
+          if (titleConfig?.visible === false) return null;
+
+          return (
+            <div 
+              style={{
+                top: `${titleConfig?.pos?.y ?? 10}%`,
+                left: `${titleConfig?.pos?.x ?? 50}%`,
+                transform: `translate(-50%, -50%) scale(${(titleConfig?.scale ?? 100) / 100})`,
+                width: `${titleConfig?.boxWidth ?? 280}px`,
+                maxWidth: '96%',
+                opacity: isTitleVisible ? 1 : 0,
+                pointerEvents: isTitleVisible ? 'auto' : 'none'
+              }}
+              onMouseDown={(e) => isTitleVisible && !editingTitle && startDragging(e, 'title', null, titleConfig?.pos || { x: 50, y: 10 })}
+              onClick={(e) => {
+                if (isTitleVisible) {
+                  e.stopPropagation();
+                  setSelectedElement({ type: 'title', id: null });
+                }
+              }}
+              className="absolute z-35 cursor-move group select-none text-center transition-opacity duration-150"
+              title="Kéo di chuyển, kéo các cạnh để chỉnh độ rộng/cao của khung, kéo góc để zoom"
+            >
             {/* Quick Action Toolbar */}
             {selectedElement?.type === 'title' && !editingTitle && renderElementToolbar(
               'title',
@@ -922,7 +926,8 @@ export default function OpusCanvasPreview({
               </div>
             )}
           </div>
-        )}
+          );
+        })()}
 
         {/* ═════════════════════════════════════════════════════════════════════════════════
             4. SUBTITLE / DYNAMIC CAPTIONS (KÉO RỘNG KHUNG, KÉO CAO, ZOOM GÓC, SỬA & XÓA)

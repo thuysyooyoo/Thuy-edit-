@@ -1110,6 +1110,7 @@ export default function App() {
           bgm_volume: bgmVolume,
           excluded_word_indices: Array.from(excludedWordIndices),
           excluded_pause_indices: Array.from(excludedPauseIndices),
+          skip_intervals: skipIntervals,
           scenes: activeClip.scenes || []
         })
       });

@@ -98,56 +98,73 @@ def prepare_broll_media(media_src: str, temp_dir: Path, idx: int, start_time: fl
 def compute_kept_intervals(
     start_time: float,
     end_time: float,
-    words: List[Dict],
-    excluded_word_indices: Optional[List[int]] = None
+    words: Optional[List[Dict]] = None,
+    excluded_word_indices: Optional[List[int]] = None,
+    skip_intervals: Optional[List[Dict]] = None
 ) -> List[tuple]:
     """
-    Tính toán danh sách các khoảng thời gian được giữ lại (kept intervals) sau khi cắt bỏ các từ thừa.
+    Tính toán danh sách các khoảng thời gian được giữ lại (kept intervals) sau khi cắt bỏ các từ thừa/khoảng lặng.
+    Ưu tiên dùng skip_intervals trực tiếp từ frontend nếu có.
     """
-    if not excluded_word_indices or not words:
-        return [(start_time, end_time)]
-
-    clip_words = [w for w in words if w.get("start", 0) >= start_time - 0.2 and w.get("end", 0) <= end_time + 0.5]
-    if not clip_words:
-        return [(start_time, end_time)]
-
-    excluded_set = set(excluded_word_indices)
-    skip_intervals = []
-    excluded_list = sorted([idx for idx in excluded_set if 0 <= idx < len(clip_words)])
-    
-    if excluded_list:
-        chunk_start = excluded_list[0]
-        chunk_end = excluded_list[0]
-        
-        for i in range(1, len(excluded_list)):
-            if excluded_list[i] == chunk_end + 1:
-                chunk_end = excluded_list[i]
-            else:
+    skips = []
+    if skip_intervals:
+        for sk in skip_intervals:
+            s = float(sk.get("start", 0.0))
+            e = float(sk.get("end", 0.0))
+            if e > s:
+                skips.append({"start": s, "end": e})
+    elif excluded_word_indices and words:
+        clip_words = [w for w in words if w.get("start", 0) >= start_time - 0.2 and w.get("end", 0) <= end_time + 0.5]
+        if clip_words:
+            excluded_set = set(excluded_word_indices)
+            excluded_list = sorted([idx for idx in excluded_set if 0 <= idx < len(clip_words)])
+            if excluded_list:
+                chunk_start = excluded_list[0]
+                chunk_end = excluded_list[0]
+                for i in range(1, len(excluded_list)):
+                    if excluded_list[i] == chunk_end + 1:
+                        chunk_end = excluded_list[i]
+                    else:
+                        s_time = clip_words[chunk_start]["start"]
+                        next_idx = chunk_end + 1
+                        e_time = clip_words[next_idx]["start"] if next_idx < len(clip_words) else clip_words[chunk_end]["end"] + 0.2
+                        skips.append({"start": s_time, "end": e_time})
+                        chunk_start = excluded_list[i]
+                        chunk_end = excluded_list[i]
                 s_time = clip_words[chunk_start]["start"]
                 next_idx = chunk_end + 1
                 e_time = clip_words[next_idx]["start"] if next_idx < len(clip_words) else clip_words[chunk_end]["end"] + 0.2
-                skip_intervals.append({"start": s_time, "end": e_time})
-                chunk_start = excluded_list[i]
-                chunk_end = excluded_list[i]
-                
-        s_time = clip_words[chunk_start]["start"]
-        next_idx = chunk_end + 1
-        e_time = clip_words[next_idx]["start"] if next_idx < len(clip_words) else clip_words[chunk_end]["end"] + 0.2
-        skip_intervals.append({"start": s_time, "end": e_time})
+                skips.append({"start": s_time, "end": e_time})
 
-    # Xây dựng các khoảng giữ lại (kept intervals)
+    if not skips:
+        return [(start_time, end_time)]
+
+    # Sắp xếp và hợp nhất các khoảng skip nằm trong [start_time, end_time]
+    skips = sorted(skips, key=lambda x: x["start"])
+    merged_skips = []
+    for sk in skips:
+        s_s = max(start_time, min(end_time, sk["start"]))
+        s_e = max(start_time, min(end_time, sk["end"]))
+        if s_e <= s_s:
+            continue
+        if not merged_skips:
+            merged_skips.append({"start": s_s, "end": s_e})
+        else:
+            last = merged_skips[-1]
+            if s_s <= last["end"] + 0.05:
+                last["end"] = max(last["end"], s_e)
+            else:
+                merged_skips.append({"start": s_s, "end": s_e})
+
     kept = []
     curr = start_time
-    for sk in skip_intervals:
-        sk_start = max(start_time, min(end_time, sk["start"]))
-        sk_end = max(start_time, min(end_time, sk["end"]))
-        if sk_start > curr + 0.08:
-            kept.append((curr, sk_start))
-        curr = max(curr, sk_end)
-        
+    for sk in merged_skips:
+        if sk["start"] > curr + 0.08:
+            kept.append((curr, sk["start"]))
+        curr = max(curr, sk["end"])
     if curr < end_time - 0.08:
         kept.append((curr, end_time))
-        
+
     return kept if kept else [(start_time, end_time)]
 
 def map_time_to_cut_timeline(orig_time: float, kept_intervals: List[tuple]) -> float:
@@ -183,6 +200,7 @@ def render_hd_vertical_clip(
     selected_bgm: Optional[str] = 'none',
     bgm_volume: int = 25,
     excluded_word_indices: Optional[List[int]] = None,
+    skip_intervals: Optional[List[Dict]] = None,
     scenes: Optional[List[Dict]] = None
 ) -> str:
     """
@@ -202,7 +220,7 @@ def render_hd_vertical_clip(
     temp_dir.mkdir(exist_ok=True)
 
     # 1. Tính toán các khoảng cắt vật lý (Kept Intervals)
-    kept_intervals = compute_kept_intervals(start_time, end_time, words, excluded_word_indices)
+    kept_intervals = compute_kept_intervals(start_time, end_time, words, excluded_word_indices, skip_intervals)
     total_duration = max(1.0, sum(e - s for s, e in kept_intervals))
 
     # 2. Face Tracker 9:16 Crop
@@ -326,21 +344,21 @@ def render_hd_vertical_clip(
     current_input_idx = 1
     title_input_idx = None
     if title_card_path:
-        cmd.extend(["-i", title_card_path])
+        cmd.extend(["-loop", "1", "-i", title_card_path])
         title_input_idx = current_input_idx
         current_input_idx += 1
 
     logo_input_idx = None
     if brand_logo_path:
-        cmd.extend(["-i", brand_logo_path])
+        cmd.extend(["-loop", "1", "-i", brand_logo_path])
         logo_input_idx = current_input_idx
         current_input_idx += 1
 
     for b_item in broll_inputs:
         if b_item["is_video"]:
-            cmd.extend(["-ss", str(b_item["trim_start"]), "-i", b_item["path"], "-t", str(b_item["dur"])])
+            cmd.extend(["-ss", str(b_item["trim_start"]), "-i", b_item["path"]])
         else:
-            cmd.extend(["-loop", "1", "-t", str(b_item["dur"]), "-i", b_item["path"]])
+            cmd.extend(["-loop", "1", "-i", b_item["path"]])
         b_item["input_idx"] = current_input_idx
         current_input_idx += 1
 
@@ -382,22 +400,22 @@ def render_hd_vertical_clip(
 
         if style == 'split_30_70_top':
             filter_parts.append(f"[{b_idx}:v]scale=1080:576:force_original_aspect_ratio=increase,crop=1080:576[{b_label}]")
-            filter_parts.append(f"[{curr_v}][{b_label}]overlay=x=0:y=0:enable='between(t,{b_start},{b_end})'[{out_v}]")
+            filter_parts.append(f"[{curr_v}][{b_label}]overlay=repeatlast=1:eof_action=repeat:x=0:y=0:enable='between(t,{b_start},{b_end})'[{out_v}]")
         elif style == 'split_30_70_bottom':
             filter_parts.append(f"[{b_idx}:v]scale=1080:576:force_original_aspect_ratio=increase,crop=1080:576[{b_label}]")
-            filter_parts.append(f"[{curr_v}][{b_label}]overlay=x=0:y=1344:enable='between(t,{b_start},{b_end})'[{out_v}]")
+            filter_parts.append(f"[{curr_v}][{b_label}]overlay=repeatlast=1:eof_action=repeat:x=0:y=1344:enable='between(t,{b_start},{b_end})'[{out_v}]")
         elif style == 'split_50_50_top':
             filter_parts.append(f"[{b_idx}:v]scale=1080:960:force_original_aspect_ratio=increase,crop=1080:960[{b_label}]")
-            filter_parts.append(f"[{curr_v}][{b_label}]overlay=x=0:y=0:enable='between(t,{b_start},{b_end})'[{out_v}]")
+            filter_parts.append(f"[{curr_v}][{b_label}]overlay=repeatlast=1:eof_action=repeat:x=0:y=0:enable='between(t,{b_start},{b_end})'[{out_v}]")
         elif style == 'split_50_50_bottom':
             filter_parts.append(f"[{b_idx}:v]scale=1080:960:force_original_aspect_ratio=increase,crop=1080:960[{b_label}]")
-            filter_parts.append(f"[{curr_v}][{b_label}]overlay=x=0:y=960:enable='between(t,{b_start},{b_end})'[{out_v}]")
+            filter_parts.append(f"[{curr_v}][{b_label}]overlay=repeatlast=1:eof_action=repeat:x=0:y=960:enable='between(t,{b_start},{b_end})'[{out_v}]")
         elif style == 'pip':
             filter_parts.append(f"[{b_idx}:v]scale=440:300:force_original_aspect_ratio=increase,crop=440:300[{b_label}]")
-            filter_parts.append(f"[{curr_v}][{b_label}]overlay=x=600:y=120:enable='between(t,{b_start},{b_end})'[{out_v}]")
+            filter_parts.append(f"[{curr_v}][{b_label}]overlay=repeatlast=1:eof_action=repeat:x=600:y=120:enable='between(t,{b_start},{b_end})'[{out_v}]")
         else: # full_cover / background
             filter_parts.append(f"[{b_idx}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[{b_label}]")
-            filter_parts.append(f"[{curr_v}][{b_label}]overlay=x=0:y=0:enable='between(t,{b_start},{b_end})'[{out_v}]")
+            filter_parts.append(f"[{curr_v}][{b_label}]overlay=repeatlast=1:eof_action=repeat:x=0:y=0:enable='between(t,{b_start},{b_end})'[{out_v}]")
 
         curr_v = out_v
 
@@ -408,7 +426,7 @@ def render_hd_vertical_clip(
         ly = max(0, min(1920, int((l_pos.get("y", 6) / 100.0) * 1920)))
         logo_opacity = max(0.1, min(1.0, float(brand_config.get("logoOpacity", 90)) / 100.0))
         filter_parts.append(f"[{logo_input_idx}:v]format=rgba,colorchannelmixer=aa={logo_opacity}[logo_opacity_stream]")
-        filter_parts.append(f"[{curr_v}][logo_opacity_stream]overlay=x={lx}-w/2:y={ly}-h/2[v_logo]")
+        filter_parts.append(f"[{curr_v}][logo_opacity_stream]overlay=repeatlast=1:eof_action=repeat:x={lx}-w/2:y={ly}-h/2[v_logo]")
         curr_v = "v_logo"
 
     # Overlay Title Card Snapshot
@@ -423,7 +441,7 @@ def render_hd_vertical_clip(
         t_start = map_time_to_cut_timeline(t_abs_start, kept_intervals)
         t_end = map_time_to_cut_timeline(t_abs_end, kept_intervals)
         t_end = max(t_start + 1.0, t_end)
-        filter_parts.append(f"[{curr_v}][{title_input_idx}:v]overlay=x={tx}-w/2:y={ty}-h/2:enable='between(t,{t_start},{t_end})'[v_title]")
+        filter_parts.append(f"[{curr_v}][{title_input_idx}:v]overlay=repeatlast=1:eof_action=repeat:x={tx}-w/2:y={ty}-h/2:enable='between(t,{t_start},{t_end})'[v_title]")
         curr_v = "v_title"
 
     # Burn Subtitles
