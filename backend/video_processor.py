@@ -51,6 +51,7 @@ def cut_video_segment(
     return output_path
 
 import base64
+import urllib.request
 
 def save_base64_image(data_uri: str, target_path: str) -> Optional[str]:
     """Lưu chuỗi ảnh base64 data URI thành file PNG chuẩn."""
@@ -67,6 +68,32 @@ def save_base64_image(data_uri: str, target_path: str) -> Optional[str]:
     except Exception as e:
         print(f"Error saving base64 image to {target_path}: {e}")
         return None
+
+def prepare_broll_media(media_src: str, temp_dir: Path, idx: int, start_time: float) -> Optional[str]:
+    """Tải hoặc chuẩn bị file B-Roll (ảnh / video) từ URL hoặc local path."""
+    if not media_src:
+        return None
+    try:
+        if media_src.startswith("data:"):
+            ext = ".png" if "image/png" in media_src else ".jpg"
+            target_path = str(temp_dir / f"broll_{idx}_{int(start_time)}{ext}")
+            return save_base64_image(media_src, target_path)
+        elif media_src.startswith("http://") or media_src.startswith("https://"):
+            ext = ".mp4" if any(media_src.lower().endswith(v) for v in ['.mp4', '.mov', '.webm', '.mkv']) else ".jpg"
+            target_path = str(temp_dir / f"broll_{idx}_{int(start_time)}{ext}")
+            if not os.path.exists(target_path):
+                req = urllib.request.Request(
+                    media_src,
+                    headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+                )
+                with urllib.request.urlopen(req, timeout=15) as resp, open(target_path, 'wb') as f:
+                    f.write(resp.read())
+            return target_path
+        elif os.path.exists(media_src):
+            return media_src
+    except Exception as e:
+        print(f"Warning: Failed to prepare B-Roll media {media_src}: {e}")
+    return None
 
 def render_hd_vertical_clip(
     input_path: str,
@@ -93,10 +120,11 @@ def render_hd_vertical_clip(
     scenes: Optional[List[Dict]] = None
 ) -> str:
     """
-    🔥 PHIÊN 3 FLAGSHIP WYSIWYG HD 9:16 RENDER ENGINE (DOM Snapshot + Subtitle Overlay):
+    🔥 PHIÊN 3 FLAGSHIP WYSIWYG HD 9:16 RENDER ENGINE (DOM Snapshot + B-Roll + Subtitle Overlay):
     - Nhận diện khuôn mặt người nói & Auto-Crop 9:16 (Face Tracker).
+    - Ghép chuẩn xác B-Rolls theo đúng phân đoạn thời gian và tỷ lệ hiển thị.
     - Đè ảnh Snapshot Đồ họa Thẻ Tiêu đề Hook (khớp 100% màu vàng gradient, bo góc, bóng đổ, font).
-    - Đè ảnh Snapshot Logo thương hiệu (khớp 100% vị trí, kích thước, độ mờ).
+    - Đè ảnh Snapshot Logo thương hiệu với độ mờ đục (Opacity) 100% như Preview.
     - Đốt phụ đề Karaoke ASS chuẩn font, màu sắc, vị trí, preset và loại bỏ từ đã cắt.
     - Đốt Nhãn dán Chữ (Text Layers) đúng vị trí và Style.
     - Tự động / Thủ công hòa âm Sound FX & BGM Nhạc nền.
@@ -136,7 +164,32 @@ def render_hd_vertical_clip(
     elif brand_config.get("showLogo") and brand_config.get("logoUrl") and os.path.exists(str(brand_config.get("logoUrl"))):
         brand_logo_path = str(brand_config.get("logoUrl"))
 
-    # 3. Generate ASS Subtitles & Text Layers
+    # 3. Chuẩn bị danh sách B-Rolls
+    broll_inputs = []
+    for b_idx, broll in enumerate(brolls or []):
+        media_src = broll.get("fileUrl") or broll.get("imageUrl") or broll.get("videoUrl")
+        local_path = prepare_broll_media(media_src, temp_dir, b_idx, start_time)
+        if local_path and os.path.exists(local_path):
+            is_vid = broll.get("mediaType") == "video" or local_path.lower().endswith(('.mp4', '.mov', '.webm', '.mkv'))
+            b_start = float(broll.get("start", 0.0))
+            b_end = float(broll.get("end", b_start + float(broll.get("duration", 4.0))))
+            # Chuyển về mốc thời gian tương đối của clip xuất
+            b_rel_start = max(0.0, b_start - start_time) if b_start >= start_time else max(0.0, b_start)
+            b_rel_end = max(b_rel_start + 0.5, b_end - start_time) if b_end >= start_time else max(b_rel_start + 0.5, b_end)
+            b_dur = b_rel_end - b_rel_start
+            b_style = broll.get("style", "split_30_70_top")
+
+            broll_inputs.append({
+                "path": local_path,
+                "is_video": is_vid,
+                "start": b_rel_start,
+                "end": b_rel_end,
+                "dur": b_dur,
+                "style": b_style,
+                "trim_start": float(broll.get("videoTrimStart", 0.0))
+            })
+
+    # 4. Generate ASS Subtitles & Text Layers
     ass_path = str(temp_dir / f"subs_{int(start_time)}.ass")
     generate_ass_subtitles(
         words=words,
@@ -158,7 +211,7 @@ def render_hd_vertical_clip(
     # Escape path for FFmpeg filter on Windows
     escaped_ass_path = ass_path.replace("\\", "/").replace(":", "\\:")
 
-    # 4. Sound FX & BGM Audio Mixing
+    # 5. Sound FX & BGM Audio Mixing
     keywords_times = [w["start"] for w in words if start_time <= w["start"] <= end_time and len(w["word"]) >= 5]
     audio_fx_data = build_sound_fx_audio_filter(
         clip_start_time=start_time,
@@ -171,7 +224,7 @@ def render_hd_vertical_clip(
         bgm_volume=bgm_volume
     )
 
-    # 5. Assemble FFmpeg Inputs & FilterGraph
+    # 6. Assemble FFmpeg Inputs & FilterGraph
     cmd = [
         FFMPEG_PATH, "-y",
         "-ss", str(start_time),
@@ -192,7 +245,16 @@ def render_hd_vertical_clip(
         logo_input_idx = current_input_idx
         current_input_idx += 1
 
+    for b_item in broll_inputs:
+        if b_item["is_video"]:
+            cmd.extend(["-ss", str(b_item["trim_start"]), "-i", b_item["path"], "-t", str(b_item["dur"])])
+        else:
+            cmd.extend(["-loop", "1", "-t", str(b_item["dur"]), "-i", b_item["path"]])
+        b_item["input_idx"] = current_input_idx
+        current_input_idx += 1
+
     fx_files = audio_fx_data.get("fx_files", [])
+    fx_start_input_idx = current_input_idx
     for fx in fx_files:
         cmd.extend(["-i", fx["path"]])
         current_input_idx += 1
@@ -204,12 +266,44 @@ def render_hd_vertical_clip(
     filter_parts.append(f"[0:v]{crop_filter},scale=1080:1920:flags=bicubic[v_base]")
     curr_v = "v_base"
 
-    # Overlay Brand Logo Snapshot
+    # Overlay B-Rolls
+    for b_item in broll_inputs:
+        b_idx = b_item["input_idx"]
+        b_label = f"broll_scaled_{b_idx}"
+        out_v = f"v_broll_{b_idx}"
+        style = b_item["style"]
+        b_start = b_item["start"]
+        b_end = b_item["end"]
+
+        if style == 'split_30_70_top':
+            filter_parts.append(f"[{b_idx}:v]scale=1080:576:force_original_aspect_ratio=increase,crop=1080:576[{b_label}]")
+            filter_parts.append(f"[{curr_v}][{b_label}]overlay=x=0:y=0:enable='between(t,{b_start},{b_end})'[{out_v}]")
+        elif style == 'split_30_70_bottom':
+            filter_parts.append(f"[{b_idx}:v]scale=1080:576:force_original_aspect_ratio=increase,crop=1080:576[{b_label}]")
+            filter_parts.append(f"[{curr_v}][{b_label}]overlay=x=0:y=1344:enable='between(t,{b_start},{b_end})'[{out_v}]")
+        elif style == 'split_50_50_top':
+            filter_parts.append(f"[{b_idx}:v]scale=1080:960:force_original_aspect_ratio=increase,crop=1080:960[{b_label}]")
+            filter_parts.append(f"[{curr_v}][{b_label}]overlay=x=0:y=0:enable='between(t,{b_start},{b_end})'[{out_v}]")
+        elif style == 'split_50_50_bottom':
+            filter_parts.append(f"[{b_idx}:v]scale=1080:960:force_original_aspect_ratio=increase,crop=1080:960[{b_label}]")
+            filter_parts.append(f"[{curr_v}][{b_label}]overlay=x=0:y=960:enable='between(t,{b_start},{b_end})'[{out_v}]")
+        elif style == 'pip':
+            filter_parts.append(f"[{b_idx}:v]scale=440:300:force_original_aspect_ratio=increase,crop=440:300[{b_label}]")
+            filter_parts.append(f"[{curr_v}][{b_label}]overlay=x=600:y=120:enable='between(t,{b_start},{b_end})'[{out_v}]")
+        else: # full_cover / background
+            filter_parts.append(f"[{b_idx}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[{b_label}]")
+            filter_parts.append(f"[{curr_v}][{b_label}]overlay=x=0:y=0:enable='between(t,{b_start},{b_end})'[{out_v}]")
+
+        curr_v = out_v
+
+    # Overlay Brand Logo Snapshot (Đúng Opacity mờ đục chuẩn Preview)
     if logo_input_idx is not None:
         l_pos = brand_config.get("pos", {"x": 82, "y": 6})
         lx = max(0, min(1080, int((l_pos.get("x", 82) / 100.0) * 1080)))
         ly = max(0, min(1920, int((l_pos.get("y", 6) / 100.0) * 1920)))
-        filter_parts.append(f"[{curr_v}][{logo_input_idx}:v]overlay=x={lx}-w/2:y={ly}-h/2[v_logo]")
+        logo_opacity = max(0.1, min(1.0, float(brand_config.get("logoOpacity", 90)) / 100.0))
+        filter_parts.append(f"[{logo_input_idx}:v]format=rgba,colorchannelmixer=aa={logo_opacity}[logo_opacity_stream]")
+        filter_parts.append(f"[{curr_v}][logo_opacity_stream]overlay=x={lx}-w/2:y={ly}-h/2[v_logo]")
         curr_v = "v_logo"
 
     # Overlay Title Card Snapshot
@@ -233,7 +327,7 @@ def render_hd_vertical_clip(
         for idx, fx in enumerate(fx_files):
             delay = fx["time_ms"]
             label = f"fx_{idx}"
-            audio_idx = (title_input_idx is not None) + (logo_input_idx is not None) + 1 + idx
+            audio_idx = fx_start_input_idx + idx
             filter_parts.append(f"[{audio_idx}:a]adelay={delay}|{delay},volume=0.75[{label}]")
             amix_inputs += f"[{label}]"
 

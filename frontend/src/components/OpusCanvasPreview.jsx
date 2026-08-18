@@ -709,7 +709,11 @@ export default function OpusCanvasPreview({
               'Logo'
             )}
 
-            <div id="brand-logo-capture" className="relative p-1 rounded-xl group-hover:ring-1 group-hover:ring-indigo-400/60 group-hover:bg-black/40 transition-all flex items-center gap-1.5">
+            <div 
+              id="brand-logo-capture" 
+              style={{ opacity: (brandConfig.logoOpacity ?? 90) / 100 }}
+              className="relative p-1 rounded-xl group-hover:ring-1 group-hover:ring-indigo-400/60 group-hover:bg-black/40 transition-all flex items-center gap-1.5"
+            >
               {brandConfig?.logoUrl ? (
                 <img 
                   src={brandConfig.logoUrl} 
