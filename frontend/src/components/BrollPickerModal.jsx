@@ -105,6 +105,28 @@ const INITIAL_STOCK_BROLLS = [
     fileUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80',
     bg: 'from-green-900 to-emerald-950' 
   },
+  { 
+    id: 'sb_9', 
+    title: 'Tiêu Hủy Hàng Hóa & Tái Chế', 
+    category: 'Môi trường & Tiêu hủy', 
+    mediaType: 'image', 
+    duration: 5, 
+    thumb: '🚜', 
+    imageUrl: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800&auto=format&fit=crop&q=80',
+    fileUrl: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800&auto=format&fit=crop&q=80',
+    bg: 'from-amber-900 to-stone-950' 
+  },
+  { 
+    id: 'sb_10', 
+    title: 'Kho Hàng Lớn & Vận Chuyển', 
+    category: 'Xuất nhập khẩu', 
+    mediaType: 'image', 
+    duration: 5, 
+    thumb: '🏬', 
+    imageUrl: 'https://images.unsplash.com/photo-1587293852726-70cdb56c2866?w=800&auto=format&fit=crop&q=80',
+    fileUrl: 'https://images.unsplash.com/photo-1587293852726-70cdb56c2866?w=800&auto=format&fit=crop&q=80',
+    bg: 'from-blue-900 to-slate-950' 
+  }
 ];
 
 export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange, clipStartTime = 0 }) {

@@ -594,7 +594,7 @@ export default function OpusCanvasPreview({
               e.stopPropagation();
               setSelectedElement({ type: 'broll', id: activeBroll.id });
             }}
-            className={`absolute overflow-hidden transition-all duration-300 ${
+            className={`group absolute overflow-hidden transition-all duration-300 ${
               activeBroll.style === 'full_cover' ? 'inset-0 z-15' :
               activeBroll.style === 'split_50_50_top' ? 'inset-x-0 top-0 h-1/2 z-15' :
               activeBroll.style === 'split_50_50_bottom' ? 'inset-x-0 bottom-0 h-1/2 z-15' :
@@ -606,24 +606,17 @@ export default function OpusCanvasPreview({
             } ${selectedElement?.type === 'broll' ? 'ring-2 ring-amber-400' : ''}`}
           >
             {renderBrollVisual(activeBroll)}
-            
-            {/* B-Roll Header Tag */}
-            <div className="absolute top-2 left-2 bg-black/75 border border-amber-500/50 px-1.5 py-0.5 rounded text-[8px] text-amber-300 font-mono font-bold z-20 flex items-center gap-1">
-              {activeBroll.style === 'background' && <UserCheck className="w-2.5 h-2.5 text-emerald-400" />}
-              <span>{activeBroll.style === 'background' ? 'Tách Người AI & Làm Nền: ' : 'B-Roll: '}</span>
-              <span>{activeBroll.title}</span>
-            </div>
 
-            {/* Quick Delete B-Roll Button */}
+            {/* Quick Delete B-Roll Button (Chỉ hiện khi hover hoặc chọn, không dính vào video) */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onRemoveBroll && onRemoveBroll(activeBroll.id);
               }}
               title="Xóa B-Roll này khỏi video"
-              className="absolute top-2 right-2 w-5 h-5 rounded-full bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center z-25 shadow-lg active:scale-95"
+              className="export-ignore-handle opacity-0 group-hover:opacity-100 transition-opacity absolute top-2 right-2 w-6 h-6 rounded-full bg-black/75 hover:bg-rose-600 border border-white/30 text-white flex items-center justify-center z-25 shadow-lg active:scale-95"
             >
-              <X className="w-3 h-3" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
@@ -823,13 +816,14 @@ export default function OpusCanvasPreview({
             3. TOP HOOK HEADLINE OVERLAY (KÉO RỘNG KHUNG, KÉO CAO, ZOOM GÓC, SỬA & XÓA, ĐỒNG BỘ TIMELINE)
            ═════════════════════════════════════════════════════════════════════════════════ */}
         {titleConfig?.visible !== false && (
-          titleConfig?.startTime === undefined ||
+          editingTitle ||
           (
-            (currentTime >= (titleConfig.startTime - 0.05) && currentTime <= (titleConfig.startTime + (titleConfig.duration || 9999) + 0.05)) ||
-            (currentTime - clipStart >= (titleConfig.startTime - 0.05) && currentTime - clipStart <= (titleConfig.startTime + (titleConfig.duration || 9999) + 0.05))
-          ) ||
-          selectedElement?.type === 'title' ||
-          editingTitle
+            titleConfig?.startTime === undefined ||
+            (
+              ((currentTime >= clipStart ? (currentTime - clipStart) : currentTime) >= ((titleConfig.startTime ?? 0) - 0.05)) &&
+              ((currentTime >= clipStart ? (currentTime - clipStart) : currentTime) <= ((titleConfig.startTime ?? 0) + (titleConfig.duration ?? 6) + 0.05))
+            )
+          )
         ) && (
           <div 
             style={{
