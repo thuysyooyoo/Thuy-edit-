@@ -1116,7 +1116,16 @@ export default function App() {
       });
       const resJson = await res.json();
       if (res.ok) {
-        alert(`XUẤT VIDEO 9:16 FULL HD THÀNH CÔNG!\n\nĐộ phân giải: 1080x1920 Full HD (CRF 18)\nFile lưu tại: ${resJson.file_path}`);
+        // Tự động kích hoạt tải video về máy tính
+        const downloadUrl = `http://127.0.0.1:8000/api/download-clip/${resJson.file_name}`;
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = resJson.file_name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        alert(`✅ XUẤT VIDEO 9:16 FULL HD THÀNH CÔNG!\n\nĐộ phân giải: 1080x1920 Full HD (CRF 18)\nFile đã bắt đầu tải về máy: ${resJson.file_name}\nĐường dẫn lưu trữ: ${resJson.file_path}`);
       } else {
         alert(`Lỗi Render HD: ${resJson.detail || "Không rõ"}`);
       }
