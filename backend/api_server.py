@@ -94,10 +94,15 @@ def _background_run_pipeline(input_source: str, gemini_api_key: Optional[str] = 
         current_job["stage"] = "Bước 2/5: Bóc băng Faster-Whisper"
         current_job["message"] = "AI đang nhận diện giọng nói và căn thời gian từng từ..."
         
-        transcriber = Transcriber(model_size="small")
-        transcript_result = transcriber.transcribe(video_path)
+        def whisper_progress(pct, msg):
+            current_job["progress"] = pct
+            current_job["stage"] = f"Bước 2/5: Bóc băng Faster-Whisper ({pct}%)"
+            current_job["message"] = msg
 
-        current_job["progress"] = 55
+        transcriber = Transcriber(model_size="small")
+        transcript_result = transcriber.transcribe(video_path, progress_callback=whisper_progress)
+
+        current_job["progress"] = 65
         current_job["stage"] = "Bước 3/5: Lọc từ thừa & khoảng lặng"
         current_job["message"] = "Đang tự động phát hiện từ ậm ờ và khoảng lặng dài..."
         clean_result = detect_filler_words_and_silence(transcript_result["words"])

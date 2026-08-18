@@ -13,11 +13,11 @@ class Transcriber:
             print(f"[Transcriber Warning] Không thể load CUDA GPU ({e}). Tự động chuyển sang chế độ CPU...")
             self.model = WhisperModel(model_size, device="cpu", compute_type="int8")
 
-    def transcribe(self, audio_or_video_path: str, language: str = None) -> dict:
+    def transcribe(self, audio_or_video_path: str, language: str = None, progress_callback = None) -> dict:
         """
         Bóc băng âm thanh/video thành lời thoại với mốc thời gian chi tiết từng từ.
         """
-        print(f"[Transcriber] Bắt đầu bóc băng file: {audio_or_video_path}")
+        print(f"[Transcriber] Bắt đầu bóc băng file: {audio_or_video_path}", flush=True)
         
         try:
             segments, info = self.model.transcribe(
@@ -27,6 +27,7 @@ class Transcriber:
                 vad_filter=True
             )
             
+            total_duration = max(1.0, info.duration) if info and info.duration else 60.0
             full_transcript = []
             all_words = []
             
@@ -52,9 +53,15 @@ class Transcriber:
                         
                 full_transcript.append(seg_dict)
                 
+                if progress_callback:
+                    pct = min(60, 30 + int((segment.end / total_duration) * 30))
+                    snippet = segment.text.strip()[:35]
+                    msg = f"Đang bóc băng: {segment.end:.1f}s / {total_duration:.1f}s - \"{snippet}...\""
+                    progress_callback(pct, msg)
+                
             detected_lang = info.language
             lang_probability = info.language_probability
-            print(f"[Transcriber] Hoàn tất bóc băng! Ngôn ngữ phát hiện: {detected_lang} ({lang_probability:.2f})")
+            print(f"[Transcriber] Hoàn tất bóc băng! Ngôn ngữ phát hiện: {detected_lang} ({lang_probability:.2f})", flush=True)
             
             full_text = " ".join([seg["text"] for seg in full_transcript])
             
