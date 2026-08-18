@@ -17,14 +17,94 @@ import {
 } from 'lucide-react';
 
 const INITIAL_STOCK_BROLLS = [
-  { id: 'sb_1', title: 'Container Cảng Biển & Logistics', category: 'Xuất nhập khẩu', mediaType: 'image', duration: 5, thumb: '🚢', bg: 'from-blue-900 to-indigo-950' },
-  { id: 'sb_2', title: 'Kiểm Kê Hàng Hóa Cửa Khẩu', category: 'Thương mại', mediaType: 'image', duration: 4, thumb: '📦', bg: 'from-amber-900 to-yellow-950' },
-  { id: 'sb_3', title: 'Doanh Nhân Họp Đàm Phán', category: 'Kinh doanh', mediaType: 'image', duration: 6, thumb: '💼', bg: 'from-slate-900 to-zinc-950' },
-  { id: 'sb_4', title: 'Kiểm Định Chất Lượng Tiêu Chuẩn', category: 'Pháp lý', mediaType: 'image', duration: 4, thumb: '🔬', bg: 'from-emerald-900 to-teal-950' },
-  { id: 'sb_5', title: 'Văn Phòng Hiện Đại & Máy Tính', category: 'Công nghệ', mediaType: 'image', duration: 5, thumb: '🏢', bg: 'from-cyan-900 to-blue-950' },
-  { id: 'sb_6', title: 'Ký Kết Hợp Đồng Pháp Lý', category: 'Pháp lý', mediaType: 'image', duration: 5, thumb: '📑', bg: 'from-purple-900 to-slate-950' },
-  { id: 'sb_7', title: 'Dây Chuyền Sản Xuất Nhà Máy', category: 'Sản xuất', mediaType: 'image', duration: 7, thumb: '🏭', bg: 'from-orange-900 to-amber-950' },
-  { id: 'sb_8', title: 'Biểu Đồ Tăng Trưởng Doanh Thu', category: 'Tài chính', mediaType: 'image', duration: 4, thumb: '📈', bg: 'from-green-900 to-emerald-950' },
+  { 
+    id: 'sb_1', 
+    title: 'Container Cảng Biển & Logistics', 
+    category: 'Xuất nhập khẩu', 
+    mediaType: 'image', 
+    duration: 5, 
+    thumb: '🚢', 
+    imageUrl: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&auto=format&fit=crop&q=80',
+    fileUrl: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&auto=format&fit=crop&q=80',
+    bg: 'from-blue-900 to-indigo-950' 
+  },
+  { 
+    id: 'sb_2', 
+    title: 'Kiểm Kê Hàng Hóa Cửa Khẩu', 
+    category: 'Thương mại', 
+    mediaType: 'image', 
+    duration: 4, 
+    thumb: '📦', 
+    imageUrl: 'https://images.unsplash.com/photo-1553413077-190dd305871c?w=800&auto=format&fit=crop&q=80',
+    fileUrl: 'https://images.unsplash.com/photo-1553413077-190dd305871c?w=800&auto=format&fit=crop&q=80',
+    bg: 'from-amber-900 to-yellow-950' 
+  },
+  { 
+    id: 'sb_3', 
+    title: 'Doanh Nhân Họp Đàm Phán', 
+    category: 'Kinh doanh', 
+    mediaType: 'image', 
+    duration: 6, 
+    thumb: '💼', 
+    imageUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&auto=format&fit=crop&q=80',
+    fileUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&auto=format&fit=crop&q=80',
+    bg: 'from-slate-900 to-zinc-950' 
+  },
+  { 
+    id: 'sb_4', 
+    title: 'Kiểm Định Chất Lượng Tiêu Chuẩn', 
+    category: 'Pháp lý', 
+    mediaType: 'image', 
+    duration: 4, 
+    thumb: '🔬', 
+    imageUrl: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&auto=format&fit=crop&q=80',
+    fileUrl: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&auto=format&fit=crop&q=80',
+    bg: 'from-emerald-900 to-teal-950' 
+  },
+  { 
+    id: 'sb_5', 
+    title: 'Văn Phòng Hiện Đại & Máy Tính', 
+    category: 'Công nghệ', 
+    mediaType: 'image', 
+    duration: 5, 
+    thumb: '🏢', 
+    imageUrl: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&auto=format&fit=crop&q=80',
+    fileUrl: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&auto=format&fit=crop&q=80',
+    bg: 'from-cyan-900 to-blue-950' 
+  },
+  { 
+    id: 'sb_6', 
+    title: 'Ký Kết Hợp Đồng Pháp Lý', 
+    category: 'Pháp lý', 
+    mediaType: 'image', 
+    duration: 5, 
+    thumb: '📑', 
+    imageUrl: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?w=800&auto=format&fit=crop&q=80',
+    fileUrl: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?w=800&auto=format&fit=crop&q=80',
+    bg: 'from-purple-900 to-slate-950' 
+  },
+  { 
+    id: 'sb_7', 
+    title: 'Dây Chuyền Sản Xuất Nhà Máy', 
+    category: 'Sản xuất', 
+    mediaType: 'image', 
+    duration: 7, 
+    thumb: '🏭', 
+    imageUrl: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&auto=format&fit=crop&q=80',
+    fileUrl: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&auto=format&fit=crop&q=80',
+    bg: 'from-orange-900 to-amber-950' 
+  },
+  { 
+    id: 'sb_8', 
+    title: 'Biểu Đồ Tăng Trưởng Doanh Thu', 
+    category: 'Tài chính', 
+    mediaType: 'image', 
+    duration: 4, 
+    thumb: '📈', 
+    imageUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80',
+    fileUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80',
+    bg: 'from-green-900 to-emerald-950' 
+  },
 ];
 
 export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange, clipStartTime = 0 }) {
@@ -141,13 +221,17 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
     const startSec = timingMode === 'phrase' ? phraseStart : parseFloat(customStart) || 0;
     const endSec = timingMode === 'phrase' ? Math.max(startSec + 1, phraseEnd) : Math.max(startSec + 1, parseFloat(customEnd) || (startSec + 4));
     const isVideo = selectedItem.mediaType === 'video';
+    const mediaUrl = selectedItem.fileUrl || selectedItem.imageUrl || selectedItem.videoUrl;
 
     onSelect({
       id: `broll_${Date.now()}`,
       title: selectedItem.title,
       thumb: selectedItem.thumb,
       mediaType: selectedItem.mediaType || 'image',
-      fileUrl: selectedItem.fileUrl,
+      fileUrl: mediaUrl,
+      imageUrl: selectedItem.imageUrl || (!isVideo ? mediaUrl : null),
+      videoUrl: selectedItem.videoUrl || (isVideo ? mediaUrl : null),
+      bg: selectedItem.bg,
       start: Math.round(startSec * 10) / 10,
       end: Math.round(endSec * 10) / 10,
       duration: Math.round((endSec - startSec) * 10) / 10,

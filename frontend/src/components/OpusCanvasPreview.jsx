@@ -286,13 +286,20 @@ export default function OpusCanvasPreview({
     setEditingPhraseModal(null);
   };
 
-  const activeBroll = brolls.find(b => currentTime >= b.start && currentTime <= b.end);
+  const clipStart = clip?.start_time || 0;
+  const activeBroll = brolls.find(b => {
+    const isAbsMatch = currentTime >= (b.start - 0.1) && currentTime <= (b.end + 0.1);
+    const relTime = currentTime - clipStart;
+    const isRelMatch = relTime >= (b.start - 0.1) && relTime <= (b.end + 0.1);
+    return isAbsMatch || isRelMatch;
+  });
 
   // Sync B-Roll video with main player
   useEffect(() => {
     if (activeBroll && brollVideoRef.current) {
-      const offset = currentTime - activeBroll.start;
-      if (Math.abs(brollVideoRef.current.currentTime - offset) > 0.3) {
+      const brollBaseStart = activeBroll.start >= clipStart ? activeBroll.start : (clipStart + activeBroll.start);
+      const offset = Math.max(0, currentTime - brollBaseStart + (activeBroll.videoTrimStart || 0));
+      if (Math.abs(brollVideoRef.current.currentTime - offset) > 0.35) {
         brollVideoRef.current.currentTime = offset;
       }
       if (isPlaying && brollVideoRef.current.paused) {
@@ -301,7 +308,7 @@ export default function OpusCanvasPreview({
         brollVideoRef.current.pause();
       }
     }
-  }, [currentTime, isPlaying, activeBroll]);
+  }, [currentTime, isPlaying, activeBroll, clipStart]);
 
   // ── RENDER 8-DIRECTIONAL TRANSFORM HANDLES (KHUNG VIỀN & 8 NÚM KÉO RỘNG KHUNG / CAO / GÓC) ──
   const renderTransformBox = (type, id, metrics) => {
@@ -453,12 +460,16 @@ export default function OpusCanvasPreview({
   };
 
   const renderBrollVisual = (broll, extraClass = '') => {
-    if (broll.videoUrl) {
+    const mediaSrc = broll.fileUrl || broll.videoUrl || broll.imageUrl;
+    const isVideo = broll.mediaType === 'video' || (mediaSrc && /\.(mp4|mov|webm|mkv|m4v|quicktime)/i.test(mediaSrc));
+
+    if (isVideo && mediaSrc) {
       return (
         <video
           ref={brollVideoRef}
-          src={broll.videoUrl}
+          src={mediaSrc}
           className={`w-full h-full object-cover ${extraClass}`}
+          autoPlay
           muted
           playsInline
           loop
@@ -466,12 +477,12 @@ export default function OpusCanvasPreview({
       );
     }
 
-    if (broll.imageUrl) {
+    if (mediaSrc) {
       return (
         <div className={`w-full h-full relative overflow-hidden ${extraClass}`}>
           <img
             ref={brollImageRef}
-            src={broll.imageUrl}
+            src={mediaSrc}
             alt={broll.title}
             className="w-full h-full object-cover animate-ken-burns filter brightness-95"
           />
@@ -479,14 +490,15 @@ export default function OpusCanvasPreview({
       );
     }
 
+    // Fallback graphic for custom b-roll without image url
     return (
-      <div className={`w-full h-full bg-gradient-to-br from-slate-900 via-[#131522] to-black flex flex-col items-center justify-center p-3 text-center overflow-hidden ${extraClass}`}>
+      <div className={`w-full h-full bg-gradient-to-br ${broll.bg || 'from-indigo-900 via-[#131522] to-black'} flex flex-col items-center justify-center p-3 text-center overflow-hidden ${extraClass}`}>
         <div className="flex flex-col items-center justify-center">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 font-bold text-xs mb-1.5 shadow-md">
-            B-Roll
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/25 border border-amber-500/50 flex items-center justify-center text-amber-300 font-bold text-xl mb-1.5 shadow-lg shadow-amber-500/20">
+            {broll.thumb || '🎬'}
           </div>
-          <span className="text-xs font-bold text-amber-300 uppercase tracking-wider line-clamp-1">{broll.title}</span>
-          <span className="text-[9px] text-slate-400 font-mono">Footage</span>
+          <span className="text-xs font-black text-amber-300 uppercase tracking-wider line-clamp-1 drop-shadow-md">{broll.title}</span>
+          <span className="text-[9px] text-amber-200/80 font-mono mt-0.5 px-2 py-0.5 rounded-full bg-black/40 border border-amber-500/20">B-Roll Visual Footage</span>
         </div>
       </div>
     );

@@ -35,7 +35,11 @@ import {
   Image as ImageIcon,
   CheckCircle2,
   Move,
-  Crown
+  Crown,
+  Download,
+  Save,
+  FileCode,
+  FolderOpen
 } from 'lucide-react';
 
 export default function OpusRightSidebar({
@@ -119,10 +123,141 @@ export default function OpusRightSidebar({
 
   // Brand Logo Upload Ref
   const logoInputRef = useRef(null);
+  const templateInputRef = useRef(null);
 
   // Dubbing State
   const [dubbingLang, setDubbingLang] = useState('en');
   const [isDubbing, setIsDubbing] = useState(false);
+
+  // Custom User Templates Library State
+  const [userTemplates, setUserTemplates] = useState(() => {
+    try {
+      const saved = localStorage.getItem('opus_user_custom_templates');
+      if (saved) return JSON.parse(saved);
+    } catch(e) {}
+    return [
+      {
+        id: 'tmpl_tiktok',
+        name: 'Mẫu TikTok Viral (Neon)',
+        desc: 'Font Montserrat Black, Subtitle Neon Green, Hook Pill White',
+        createdAt: 'Mẫu sẵn có',
+        preset: {
+          fontStyle: { fontFamily: 'Montserrat', fontSize: 40, textColor: '#ffffff', strokeWidth: 8, strokeColor: '#000000', highlightColor: '#04f827' },
+          captionPreset: 'Karaoke Neon Green',
+          captionEffect: 'pop',
+          titleConfig: { visible: true, style: 'pill_white' },
+          brandConfig: { showLogo: true, logoText: 'OPUS STUDIO', logoSize: 65, logoOpacity: 90 }
+        }
+      },
+      {
+        id: 'tmpl_mrbeast',
+        name: 'Mẫu MrBeast Giật Gân',
+        desc: 'Font Impact, Chữ Vàng Highlight Trắng, Hook Yellow Impact',
+        createdAt: 'Mẫu sẵn có',
+        preset: {
+          fontStyle: { fontFamily: 'Impact', fontSize: 46, textColor: '#FFFD03', strokeWidth: 10, strokeColor: '#000000', highlightColor: '#ffffff' },
+          captionPreset: 'MrBeast Impact',
+          captionEffect: 'wave',
+          titleConfig: { visible: true, style: 'yellow_impact' },
+          brandConfig: { showLogo: true, logoText: 'VIRAL HUB', logoSize: 70, logoOpacity: 95 }
+        }
+      },
+      {
+        id: 'tmpl_podcast',
+        name: 'Mẫu Podcast Thanh Lịch Clean',
+        desc: 'Font Inter Tight 36px, Viền Mỏng, Hook Minimalist Clean',
+        createdAt: 'Mẫu sẵn có',
+        preset: {
+          fontStyle: { fontFamily: 'Inter', fontSize: 36, textColor: '#ffffff', strokeWidth: 4, strokeColor: '#000000', highlightColor: '#04f827' },
+          captionPreset: 'Minimalist Clean',
+          captionEffect: 'glow',
+          titleConfig: { visible: true, style: 'minimal' },
+          brandConfig: { showLogo: true, logoText: 'PODCAST TALK', logoSize: 60, logoOpacity: 85 }
+        }
+      }
+    ];
+  });
+
+  const handleApplyTemplate = (tmpl) => {
+    if (!tmpl?.preset) return;
+    if (tmpl.preset.fontStyle && setFontStyle) setFontStyle(tmpl.preset.fontStyle);
+    if (tmpl.preset.captionPreset && setCaptionPreset) setCaptionPreset(tmpl.preset.captionPreset);
+    if (tmpl.preset.captionEffect && setCaptionEffect) setCaptionEffect(tmpl.preset.captionEffect);
+    if (tmpl.preset.titleConfig && setTitleConfig) setTitleConfig(prev => ({ ...prev, ...tmpl.preset.titleConfig }));
+    if (tmpl.preset.brandConfig && setBrandConfig) setBrandConfig(prev => ({ ...prev, ...tmpl.preset.brandConfig }));
+    alert(`✅ Đã áp dụng giao diện "${tmpl.name}" thành công!`);
+  };
+
+  const handleSaveCurrentAsTemplate = () => {
+    const name = prompt("Nhập tên cho Template mới của bạn:", `Template Cá Nhân ${userTemplates.length + 1}`);
+    if (!name || !name.trim()) return;
+
+    const newTmpl = {
+      id: `tmpl_${Date.now()}`,
+      name: name.trim(),
+      desc: `Lưu ngày ${new Date().toLocaleDateString('vi-VN')} • Tùy chỉnh riêng`,
+      createdAt: new Date().toLocaleDateString('vi-VN'),
+      isCustom: true,
+      preset: {
+        fontStyle,
+        captionPreset,
+        captionEffect,
+        titleConfig,
+        brandConfig
+      }
+    };
+
+    const updated = [newTmpl, ...userTemplates];
+    setUserTemplates(updated);
+    try {
+      localStorage.setItem('opus_user_custom_templates', JSON.stringify(updated));
+    } catch(e) {}
+    alert(`✅ Đã lưu mẫu "${name}" vào Kho Template cá nhân thành công!`);
+  };
+
+  const handleDeleteTemplate = (e, tmplId) => {
+    e.stopPropagation();
+    const updated = userTemplates.filter(t => t.id !== tmplId);
+    setUserTemplates(updated);
+    try {
+      localStorage.setItem('opus_user_custom_templates', JSON.stringify(updated));
+    } catch(e) {}
+  };
+
+  const handleExportTemplate = (e, tmpl) => {
+    e.stopPropagation();
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tmpl, null, 2));
+    const dlAnchor = document.createElement('a');
+    dlAnchor.setAttribute("href", dataStr);
+    dlAnchor.setAttribute("download", `${tmpl.name.replace(/\s+/g, '_')}_template.json`);
+    dlAnchor.click();
+  };
+
+  const handleImportTemplateFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target.result);
+        if (parsed.preset) {
+          const newTmpl = {
+            ...parsed,
+            id: `tmpl_${Date.now()}`,
+            name: parsed.name || file.name.replace('.json', ''),
+            isCustom: true
+          };
+          const updated = [newTmpl, ...userTemplates];
+          setUserTemplates(updated);
+          localStorage.setItem('opus_user_custom_templates', JSON.stringify(updated));
+          alert(`✅ Đã nhập Template "${newTmpl.name}" thành công!`);
+        }
+      } catch(err) {
+        alert("File template không hợp lệ!");
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const tools = [
     { id: 'ai_enhance', label: 'AI enhance', icon: Sparkles },
@@ -737,133 +872,24 @@ export default function OpusRightSidebar({
         )}
 
         {/* ═══════════════════════════════════════════════════
-            TAB 3: MEDIA (LOGO / WATERMARK & BACKGROUND MUSIC)
+            TAB 3: MEDIA (LOGO THƯƠNG HIỆU & NHẠC NỀN)
            ═══════════════════════════════════════════════════ */}
         {activeTab === 'media' && (
           <div className="space-y-4 font-sans text-xs">
-            <h3 className="font-bold text-white text-sm">Media & Nhạc Nền</h3>
-
-            {/* Watermark Controls */}
-            <div className="p-3.5 bg-[#171926] border border-[#272b40] rounded-2xl space-y-3">
-              <div className="flex items-center justify-between pb-1.5 border-b border-[#222638]">
-                <div className="font-bold text-white flex items-center gap-1.5">
-                  <ImageIcon className="w-4 h-4 text-indigo-400" />
-                  <span>Watermark / Logo Thương Hiệu</span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={watermark.visible}
-                  onChange={(e) => setWatermark && setWatermark({ ...watermark, visible: e.target.checked })}
-                  className="w-4 h-4 accent-indigo-500 rounded cursor-pointer"
-                />
-              </div>
-
-              {watermark.visible && (
-                <div className="space-y-2 pt-1">
-                  <div>
-                    <span className="text-slate-400 text-[11px]">Nội dung Watermark:</span>
-                    <input
-                      type="text"
-                      value={watermark.text}
-                      onChange={(e) => setWatermark && setWatermark({ ...watermark, text: e.target.value })}
-                      placeholder="VD: @kenh_tiktok"
-                      className="w-full bg-[#10121a] border border-[#2b2f44] text-white rounded-lg px-2.5 py-1 text-xs mt-1"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between text-slate-300">
-                    <span>Vị trí hiển thị:</span>
-                    <select
-                      value={watermark.pos}
-                      onChange={(e) => setWatermark && setWatermark({ ...watermark, pos: e.target.value })}
-                      className="bg-[#10121a] border border-[#2b2f44] rounded-lg px-2 py-1 text-xs text-white"
-                    >
-                      <option value="top-right">Góc trên phải</option>
-                      <option value="top-left">Góc trên trái</option>
-                      <option value="bottom-right">Góc dưới phải</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-slate-300">
-                      <span>Độ trong suốt:</span>
-                      <span className="font-mono text-indigo-400">{watermark.opacity}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="20"
-                      max="100"
-                      value={watermark.opacity}
-                      onChange={(e) => setWatermark && setWatermark({ ...watermark, opacity: parseInt(e.target.value) })}
-                      className="w-full h-1.5 bg-[#25283a] rounded-lg appearance-none accent-indigo-500 cursor-pointer"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Background Music Selector */}
-            <div className="p-3.5 bg-[#171926] border border-[#272b40] rounded-2xl space-y-3">
-              <div className="font-bold text-white flex items-center gap-1.5">
-                <Music className="w-4 h-4 text-emerald-400" />
-                <span>Kho Nhạc Nền (BGM)</span>
-              </div>
-
-              <div className="space-y-2">
-                {bgmTracks.map((track) => (
-                  <div
-                    key={track.id}
-                    onClick={() => setSelectedBgm(track.id)}
-                    className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                      selectedBgm === track.id ? 'bg-emerald-950/40 border-emerald-500/50 text-white shadow-md' : 'bg-[#12131e] border-[#25283c] text-slate-300 hover:border-slate-500'
-                    }`}
-                  >
-                    <div>
-                      <div className="font-bold text-xs">{track.name}</div>
-                      <div className="text-[10px] text-slate-400">{track.bpm} • {track.duration}</div>
-                    </div>
-                    {selectedBgm === track.id && <Check className="w-4 h-4 text-emerald-400" />}
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-1 pt-1 border-t border-[#222638]">
-                <div className="flex items-center justify-between text-slate-300">
-                  <span>Âm lượng nhạc nền:</span>
-                  <span className="font-mono text-emerald-400">{bgmVolume}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="5"
-                  max="100"
-                  value={bgmVolume}
-                  onChange={(e) => setBgmVolume(parseInt(e.target.value))}
-                  className="w-full h-1.5 bg-[#25283a] rounded-lg appearance-none accent-emerald-500 cursor-pointer"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ═══════════════════════════════════════════════════
-            TAB 4: BRAND TEMPLATE & LOGO
-           ═══════════════════════════════════════════════════ */}
-        {activeTab === 'brand' && (
-          <div className="space-y-4 font-sans text-xs">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-white text-sm flex items-center gap-2">
-                <Crown className="w-4 h-4 text-amber-400" />
-                <span>Brand Template & Logo</span>
+                <UploadCloud className="w-4 h-4 text-indigo-400" />
+                <span>Media & Logo Thương Hiệu</span>
               </h3>
               <span className="text-[10px] text-indigo-400 font-mono font-bold">Kéo thả tự do</span>
             </div>
 
-            {/* 1. Logo Upload & Settings */}
+            {/* 1. Logo Upload & Controls */}
             <div className="p-3.5 bg-[#171926] border border-[#272b40] rounded-2xl space-y-3">
               <div className="flex items-center justify-between pb-1.5 border-b border-[#222638]">
                 <span className="font-bold text-white flex items-center gap-1.5">
                   <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Logo Thương Hiệu</span>
+                  <span>Logo / Sticker Thương Hiệu</span>
                 </span>
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input
@@ -908,7 +934,7 @@ export default function OpusRightSidebar({
 
                 <div className="flex-1 space-y-1.5">
                   <div className="text-[11px] font-bold text-white">
-                    {brandConfig?.logoUrl ? "Đã tải Logo ảnh" : "Chưa có ảnh Logo (Dùng chữ)"}
+                    {brandConfig?.logoUrl ? "Đã tải Logo hình ảnh" : "Chưa tải ảnh (Dùng chữ / Slogan)"}
                   </div>
                   <div className="flex gap-1.5">
                     <button
@@ -931,7 +957,7 @@ export default function OpusRightSidebar({
 
               {/* Slogan / Brand Text */}
               <div>
-                <span className="text-slate-400 text-[10px]">Tên thương hiệu / Slogan:</span>
+                <span className="text-slate-400 text-[10px]">Tên thương hiệu / Slogan chữ:</span>
                 <input
                   type="text"
                   value={brandConfig?.logoText || ''}
@@ -973,44 +999,147 @@ export default function OpusRightSidebar({
               {/* Drag tip */}
               <div className="p-2 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-[10px] text-indigo-300 flex items-center gap-1.5">
                 <Move className="w-3.5 h-3.5 shrink-0" />
-                <span>Kéo thả Logo tự do: Click & giữ Logo trực tiếp trên khung video xem trước để dời vị trí.</span>
+                <span>Kéo thả Logo tự do: Bấm & giữ Logo trực tiếp trên khung video xem trước để dời vị trí.</span>
               </div>
             </div>
 
-            {/* 2. Top Title Hook Styles */}
-            <div className="p-3.5 bg-[#171926] border border-[#272b40] rounded-2xl space-y-2.5">
-              <div className="font-bold text-white flex items-center justify-between">
-                <span>Phong Cách Tiêu Đề Hook Đỉnh Video</span>
-                <span className="text-[10px] text-amber-400 font-mono">5 Styles</span>
+            {/* 2. Background Music Selector */}
+            <div className="p-3.5 bg-[#171926] border border-[#272b40] rounded-2xl space-y-3">
+              <div className="font-bold text-white flex items-center gap-1.5">
+                <Music className="w-4 h-4 text-emerald-400" />
+                <span>Kho Nhạc Nền (BGM)</span>
               </div>
 
-              <div className="grid grid-cols-1 gap-1.5">
-                {[
-                  { id: 'pill_white', name: 'Pill White Classic', desc: 'Nền trắng chữ đen bo góc nổi bật' },
-                  { id: 'neon_cyber', name: 'Neon Cyber Green', desc: 'Viền xanh neon phát sáng công nghệ' },
-                  { id: 'gradient_gold', name: 'Gradient Gold Banner', desc: 'Dải màu vàng kim hoàng gia cuốn hút' },
-                  { id: 'yellow_impact', name: 'Yellow Impact MrBeast', desc: 'Chữ vàng viền đen dày giật gân' },
-                  { id: 'minimal', name: 'Minimalist Clean Glass', desc: 'Nền kính mờ trong suốt thanh lịch' },
-                ].map((st) => (
+              <div className="space-y-2">
+                {bgmTracks.map((track) => (
                   <div
-                    key={st.id}
-                    onClick={() => setTitleConfig && setTitleConfig({ ...titleConfig, style: st.id })}
+                    key={track.id}
+                    onClick={() => setSelectedBgm(track.id)}
                     className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                      (titleConfig?.style || 'pill_white') === st.id
-                        ? 'bg-amber-950/40 border-amber-500 text-white ring-1 ring-amber-500'
-                        : 'bg-[#12131e] border-[#222638] text-slate-300 hover:border-slate-500'
+                      selectedBgm === track.id ? 'bg-emerald-950/40 border-emerald-500/50 text-white shadow-md' : 'bg-[#12131e] border-[#25283c] text-slate-300 hover:border-slate-500'
                     }`}
                   >
                     <div>
-                      <div className="font-bold text-xs text-white">{st.name}</div>
-                      <div className="text-[10px] text-slate-400">{st.desc}</div>
+                      <div className="font-bold text-xs">{track.name}</div>
+                      <div className="text-[10px] text-slate-400">{track.bpm} • {track.duration}</div>
                     </div>
-                    {(titleConfig?.style || 'pill_white') === st.id && (
-                      <Check className="w-4 h-4 text-amber-400 shrink-0" />
-                    )}
+                    {selectedBgm === track.id && <Check className="w-4 h-4 text-emerald-400" />}
                   </div>
                 ))}
               </div>
+
+              <div className="space-y-1 pt-1 border-t border-[#222638]">
+                <div className="flex items-center justify-between text-slate-300">
+                  <span>Âm lượng nhạc nền:</span>
+                  <span className="font-mono text-emerald-400">{bgmVolume}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="5"
+                  max="100"
+                  value={bgmVolume}
+                  onChange={(e) => setBgmVolume(parseInt(e.target.value))}
+                  className="w-full h-1.5 bg-[#25283a] rounded-lg appearance-none accent-emerald-500 cursor-pointer"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════
+            TAB 4: BRAND TEMPLATE (KHO TEMPLATE NGƯỜI DÙNG)
+           ═══════════════════════════════════════════════════ */}
+        {activeTab === 'brand' && (
+          <div className="space-y-4 font-sans text-xs">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                <Crown className="w-4 h-4 text-amber-400" />
+                <span>Kho Template Người Dùng</span>
+              </h3>
+              <span className="text-[10px] text-amber-400 font-mono font-bold">{userTemplates.length} Mẫu</span>
+            </div>
+
+            {/* Template Action Buttons */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={handleSaveCurrentAsTemplate}
+                className="p-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-xs shadow-md flex items-center justify-center gap-1.5 transition-all active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Lưu Mẫu Mới</span>
+              </button>
+
+              <button
+                onClick={() => templateInputRef.current?.click()}
+                className="p-2.5 rounded-xl bg-[#1c1f30] hover:bg-[#252940] border border-[#2e334d] text-slate-200 hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95"
+              >
+                <UploadCloud className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Nhập File (.json)</span>
+              </button>
+
+              <input
+                ref={templateInputRef}
+                type="file"
+                accept=".json,application/json"
+                onChange={handleImportTemplateFile}
+                className="hidden"
+              />
+            </div>
+
+            {/* User Templates List */}
+            <div className="space-y-2.5">
+              <div className="text-slate-400 text-[11px] font-bold">Danh sách Mẫu Template:</div>
+
+              {userTemplates.map((tmpl) => (
+                <div
+                  key={tmpl.id}
+                  className="p-3 bg-[#161826] border border-[#272b40] hover:border-amber-500/60 rounded-2xl transition-all space-y-2 group"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="font-bold text-xs text-white group-hover:text-amber-300 flex items-center gap-1.5">
+                      <LayoutGrid className="w-3.5 h-3.5 text-amber-400" />
+                      <span>{tmpl.name}</span>
+                    </div>
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#202336] text-slate-400 font-mono">
+                      {tmpl.createdAt}
+                    </span>
+                  </div>
+
+                  <p className="text-[10px] text-slate-400 leading-snug">
+                    {tmpl.desc}
+                  </p>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-[#222538]">
+                    <button
+                      onClick={() => handleApplyTemplate(tmpl)}
+                      className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] flex items-center gap-1 shadow-sm transition-all active:scale-95"
+                    >
+                      <Check className="w-3 h-3" />
+                      <span>Áp dụng mẫu</span>
+                    </button>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => handleExportTemplate(e, tmpl)}
+                        title="Tải template về máy tính (.json)"
+                        className="p-1.5 rounded-lg bg-[#1e2133] hover:bg-indigo-600 text-slate-300 hover:text-white transition-colors"
+                      >
+                        <Download className="w-3 h-3" />
+                      </button>
+
+                      {tmpl.isCustom && (
+                        <button
+                          onClick={(e) => handleDeleteTemplate(e, tmpl.id)}
+                          title="Xóa template này"
+                          className="p-1.5 rounded-lg bg-[#1e2133] hover:bg-rose-600 text-slate-300 hover:text-white transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -1198,25 +1327,62 @@ export default function OpusRightSidebar({
         )}
 
         {/* ═══════════════════════════════════════════════════
-            TAB 7: TEXT LAYERS (CHỮ & NHÃN DÁN ĐA PHONG CÁCH)
+            TAB 7: TEXT (PHONG CÁCH TIÊU ĐỀ HOOK & NHÃN DÁN CHỮ)
            ═══════════════════════════════════════════════════ */}
         {activeTab === 'text' && (
           <div className="space-y-4 font-sans text-xs">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-white text-sm flex items-center gap-2">
                 <Type className="w-4 h-4 text-indigo-400" />
-                <span>Thêm Chữ (Text Layers)</span>
+                <span>Tiêu Đề Hook & Chữ Tùy Chỉnh</span>
               </h3>
               <span className="text-[10px] text-indigo-400 font-mono font-bold">Kéo thả tự do</span>
             </div>
+
+            {/* 1. Top Title Hook Styles (Chuyển từ Brand sang Text) */}
+            <div className="p-3.5 bg-[#171926] border border-[#272b40] rounded-2xl space-y-2.5">
+              <div className="font-bold text-white flex items-center justify-between">
+                <span>Phong Cách Tiêu Đề Hook Đỉnh Video</span>
+                <span className="text-[10px] text-amber-400 font-mono">5 Styles</span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-1.5">
+                {[
+                  { id: 'pill_white', name: 'Pill White Classic', desc: 'Nền trắng chữ đen bo góc nổi bật' },
+                  { id: 'neon_cyber', name: 'Neon Cyber Green', desc: 'Viền xanh neon phát sáng công nghệ' },
+                  { id: 'gradient_gold', name: 'Gradient Gold Banner', desc: 'Dải màu vàng kim hoàng gia cuốn hút' },
+                  { id: 'yellow_impact', name: 'Yellow Impact MrBeast', desc: 'Chữ vàng viền đen dày giật gân' },
+                  { id: 'minimal', name: 'Minimalist Clean Glass', desc: 'Nền kính mờ trong suốt thanh lịch' },
+                ].map((st) => (
+                  <div
+                    key={st.id}
+                    onClick={() => setTitleConfig && setTitleConfig({ ...titleConfig, style: st.id })}
+                    className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                      (titleConfig?.style || 'pill_white') === st.id
+                        ? 'bg-amber-950/40 border-amber-500 text-white ring-1 ring-amber-500'
+                        : 'bg-[#12131e] border-[#222638] text-slate-300 hover:border-slate-500'
+                    }`}
+                  >
+                    <div>
+                      <div className="font-bold text-xs text-white">{st.name}</div>
+                      <div className="text-[10px] text-slate-400">{st.desc}</div>
+                    </div>
+                    {(titleConfig?.style || 'pill_white') === st.id && (
+                      <Check className="w-4 h-4 text-amber-400 shrink-0" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
             
-            <div className="space-y-2">
-              <div className="text-[11px] font-bold text-slate-300">Chọn Kiểu Chữ Cần Thêm Nhanh:</div>
+            {/* 2. Quick Text Presets */}
+            <div className="p-3.5 bg-[#171926] border border-[#272b40] rounded-2xl space-y-2">
+              <div className="text-[11px] font-bold text-slate-300">Thêm Nhãn Dán Chữ Nhanh (Text Layers):</div>
               
               <div className="grid grid-cols-1 gap-2">
                 <button
                   onClick={() => onAddTextLayer && onAddTextLayer("TIÊU ĐỀ NỔI BẬT", "header")}
-                  className="p-3 bg-[#161826] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
+                  className="p-3 bg-[#12131e] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
                 >
                   <div>
                     <div className="font-black text-xs text-white uppercase group-hover:text-indigo-300">+ Tiêu Đề Lớn (Header)</div>
@@ -1227,7 +1393,7 @@ export default function OpusRightSidebar({
 
                 <button
                   onClick={() => onAddTextLayer && onAddTextLayer("BÍ QUYẾT VIRAL", "neon_tag")}
-                  className="p-3 bg-[#161826] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
+                  className="p-3 bg-[#12131e] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
                 >
                   <div>
                     <div className="font-bold text-xs text-emerald-300 group-hover:text-emerald-200">+ Nhãn Neon Dạ Quang (Neon Tag)</div>
@@ -1238,7 +1404,7 @@ export default function OpusRightSidebar({
 
                 <button
                   onClick={() => onAddTextLayer && onAddTextLayer("XEM NGAY ĐIỀU NÀY", "gradient_badge")}
-                  className="p-3 bg-[#161826] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
+                  className="p-3 bg-[#12131e] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
                 >
                   <div>
                     <div className="font-black text-xs text-amber-300 group-hover:text-amber-200">+ Thẻ Gradient Rực Rỡ (Badge)</div>
@@ -1249,7 +1415,7 @@ export default function OpusRightSidebar({
 
                 <button
                   onClick={() => onAddTextLayer && onAddTextLayer("Chú thích quan trọng...", "callout_box")}
-                  className="p-3 bg-[#161826] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
+                  className="p-3 bg-[#12131e] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
                 >
                   <div>
                     <div className="font-medium text-xs text-slate-200 group-hover:text-white">+ Khung Chú Thích (Callout Box)</div>
@@ -1260,7 +1426,7 @@ export default function OpusRightSidebar({
 
                 <button
                   onClick={() => onAddTextLayer && onAddTextLayer("KHÔNG THỂ TIN ĐƯỢC!", "yellow_impact")}
-                  className="p-3 bg-[#161826] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
+                  className="p-3 bg-[#12131e] hover:bg-[#22253a] border border-[#272b40] rounded-xl text-left transition-all group flex items-center justify-between"
                 >
                   <div>
                     <div className="font-black text-xs text-yellow-300 group-hover:text-yellow-200">+ Chữ Vàng Viền Đen (Yellow Impact)</div>
@@ -1271,14 +1437,14 @@ export default function OpusRightSidebar({
               </div>
             </div>
 
-            {/* Custom Text Input */}
-            <div className="pt-3 border-t border-[#202334] space-y-2.5">
+            {/* 3. Custom Text Input */}
+            <div className="p-3.5 bg-[#171926] border border-[#272b40] rounded-2xl space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-slate-300 font-bold">Tự gõ chữ tùy ý:</span>
                 <select
                   value={selectedTextStyle}
                   onChange={(e) => setSelectedTextStyle(e.target.value)}
-                  className="bg-[#12131e] border border-[#2d3248] text-white rounded-lg px-2 py-0.5 text-[10px] font-bold"
+                  className="bg-[#10121a] border border-[#2d3248] text-white rounded-lg px-2 py-0.5 text-[10px] font-bold"
                 >
                   <option value="header">Kiểu Header</option>
                   <option value="neon_tag">Kiểu Neon</option>
@@ -1318,7 +1484,7 @@ export default function OpusRightSidebar({
 
               <div className="p-2 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-[10px] text-indigo-300 flex items-center gap-1.5">
                 <Move className="w-3.5 h-3.5 shrink-0" />
-                <span>Kéo thả chữ tự do: Click & giữ chữ trực tiếp trên khung video xem trước để dời tới bất kỳ điểm nào.</span>
+                <span>Kéo thả chữ tự do: Bấm & giữ chữ trực tiếp trên khung video xem trước để dời tới bất kỳ điểm nào.</span>
               </div>
             </div>
           </div>

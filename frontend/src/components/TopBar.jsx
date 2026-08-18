@@ -14,16 +14,21 @@ import {
   Cpu,
   Clock,
   Layout,
-  Check
+  Check,
+  Save,
+  Mic
 } from 'lucide-react';
 
 export default function TopBar({ 
   onSpeechCleanup, 
+  speechEnhance = false,
+  onToggleSpeechEnhance,
   onExtendClip, 
   aspectRatio, 
   setAspectRatio, 
   onExport, 
   onExportHd,
+  onSaveProject,
   isExportingHd = false,
   videoTitle, 
   onBackToDashboard,
@@ -79,11 +84,18 @@ export default function TopBar({
         )}
 
         <button
-          onClick={onSpeechCleanup}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#1e202d] hover:bg-[#282b3d] text-slate-200 hover:text-white border border-[#2f3347] text-xs font-semibold transition-all shadow-sm active:scale-95"
+          onClick={() => {
+            onToggleSpeechEnhance ? onToggleSpeechEnhance() : onSpeechCleanup && onSpeechCleanup();
+          }}
+          title="Khử tạp âm, lọc ồn và làm rõ giọng nói người thuyết trình"
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all shadow-sm active:scale-95 ${
+            speechEnhance 
+              ? 'bg-indigo-600/30 border-indigo-500 text-indigo-200 ring-1 ring-indigo-500' 
+              : 'bg-[#1e202d] hover:bg-[#282b3d] text-slate-200 hover:text-white border-[#2f3347]'
+          }`}
         >
-          <Wand2 className="w-3.5 h-3.5 text-indigo-400" />
-          <span>Speech cleanup</span>
+          <Wand2 className={`w-3.5 h-3.5 ${speechEnhance ? 'text-indigo-400 animate-pulse' : 'text-indigo-400'}`} />
+          <span>Speech cleanup: <strong>{speechEnhance ? 'BẬT' : 'TẮT'}</strong></span>
         </button>
 
         {/* Extend Clip Popover */}
@@ -224,6 +236,18 @@ export default function TopBar({
         <span className="text-xs text-slate-400 truncate max-w-[160px] hidden lg:inline-block">
           {videoTitle || "Opus Clip Project"}
         </span>
+
+        {/* Save Project Draft Button */}
+        {onSaveProject && (
+          <button
+            onClick={onSaveProject}
+            title="Lưu tạm thời toàn bộ thiết lập (tiêu đề, phụ đề, B-Roll, chữ, logo, phân cảnh)"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1e2030] hover:bg-[#282c44] text-indigo-300 hover:text-white border border-indigo-500/40 text-xs font-bold transition-all active:scale-95 shadow-sm"
+          >
+            <Save className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Lưu Tạm</span>
+          </button>
+        )}
 
         {/* Quick Cut Export */}
         <button

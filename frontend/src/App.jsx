@@ -136,6 +136,98 @@ export default function App() {
 
   const videoRef = useRef(null);
   const playedFxRef = useRef(new Set());
+  const audioContextRef = useRef(null);
+  const audioNodesRef = useRef(null);
+
+  // 🎧 Web Audio API Real-time Speech Noise Filter & Vocal Presence Boost
+  useEffect(() => {
+    if (!videoRef.current) return;
+    
+    const setupAudioGraph = () => {
+      try {
+        if (!audioContextRef.current) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContext) return;
+          const ctx = new AudioContext();
+          const source = ctx.createMediaElementSource(videoRef.current);
+          
+          // 1. High-Pass Filter (Cắt tần số thấp dưới 85Hz - triệt tiêu tiếng ù gió, tiếng rung bàn, quạt)
+          const highPass = ctx.createBiquadFilter();
+          highPass.type = 'highpass';
+          highPass.frequency.value = 85;
+
+          // 2. Peaking Filter (Tăng độ nét dải trung cao của giọng nói 3000Hz)
+          const vocalPresence = ctx.createBiquadFilter();
+          vocalPresence.type = 'peaking';
+          vocalPresence.frequency.value = 3000;
+          vocalPresence.Q.value = 1.2;
+          vocalPresence.gain.value = 5.0;
+
+          // 3. Low-Pass Filter (Lọc tạp âm xì xào tần số cực cao trên 8500Hz)
+          const lowPass = ctx.createBiquadFilter();
+          lowPass.type = 'lowpass';
+          lowPass.frequency.value = 8500;
+
+          // 4. Dynamics Compressor (Cân bằng âm lượng, nén giọng đều đặn)
+          const compressor = ctx.createDynamicsCompressor();
+          compressor.threshold.value = -24;
+          compressor.knee.value = 30;
+          compressor.ratio.value = 4;
+          compressor.attack.value = 0.003;
+          compressor.release.value = 0.25;
+
+          // Gain Nodes for A/B Bypass vs Processed
+          const bypassGain = ctx.createGain();
+          const effectGain = ctx.createGain();
+
+          // Bypass path: source -> bypassGain -> destination
+          source.connect(bypassGain);
+          bypassGain.connect(ctx.destination);
+
+          // Processed path: source -> highPass -> vocalPresence -> lowPass -> compressor -> effectGain -> destination
+          source.connect(highPass);
+          highPass.connect(vocalPresence);
+          vocalPresence.connect(lowPass);
+          lowPass.connect(compressor);
+          compressor.connect(effectGain);
+          effectGain.connect(ctx.destination);
+
+          // Initial gains based on speechEnhance
+          if (speechEnhance) {
+            bypassGain.gain.value = 0;
+            effectGain.gain.value = 1;
+          } else {
+            bypassGain.gain.value = 1;
+            effectGain.gain.value = 0;
+          }
+
+          audioContextRef.current = ctx;
+          audioNodesRef.current = { bypassGain, effectGain, ctx };
+        }
+      } catch (err) {
+        console.warn("Web Audio API setup notice:", err);
+      }
+    };
+
+    videoRef.current.addEventListener('play', setupAudioGraph, { once: true });
+  }, []);
+
+  // Update audio filter gains on toggle
+  useEffect(() => {
+    if (audioNodesRef.current) {
+      const { bypassGain, effectGain, ctx } = audioNodesRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      if (speechEnhance) {
+        bypassGain.gain.setTargetAtTime(0, ctx.currentTime, 0.05);
+        effectGain.gain.setTargetAtTime(1, ctx.currentTime, 0.05);
+      } else {
+        bypassGain.gain.setTargetAtTime(1, ctx.currentTime, 0.05);
+        effectGain.gain.setTargetAtTime(0, ctx.currentTime, 0.05);
+      }
+    }
+  }, [speechEnhance]);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -145,10 +237,33 @@ export default function App() {
       setData(json);
 
       if (json.has_data && json.viral_clips && json.viral_clips.length > 0) {
-        setActiveClip(json.viral_clips[0]);
-        setCurrentTime(json.viral_clips[0].start_time);
-        setCustomTitle(json.viral_clips[0].title);
-        setCurrentView('dashboard');
+        const firstClip = json.viral_clips[0];
+        setActiveClip(firstClip);
+        setCurrentTime(firstClip.start_time);
+        setCustomTitle(firstClip.title);
+
+        // Khôi phục bản lưu tạm nếu có
+        try {
+          const localSaved = localStorage.getItem(`opus_saved_project_${firstClip.id}`);
+          if (localSaved) {
+            const p = JSON.parse(localSaved);
+            if (p.customTitle) setCustomTitle(p.customTitle);
+            if (p.fontStyle) setFontStyle(p.fontStyle);
+            if (p.captionPreset) setCaptionPreset(p.captionPreset);
+            if (p.captionEffect) setCaptionEffect(p.captionEffect);
+            if (p.titleConfig) setTitleConfig(p.titleConfig);
+            if (p.captionConfig) setCaptionConfig(p.captionConfig);
+            if (p.brandConfig) setBrandConfig(p.brandConfig);
+            if (p.textLayers) setTextLayers(p.textLayers);
+            if (p.brolls) setBrolls(p.brolls);
+            if (p.soundFxMarkers) setSoundFxMarkers(p.soundFxMarkers);
+            if (p.excludedWordIndices) setExcludedWordIndices(new Set(p.excludedWordIndices));
+            if (p.excludedPauseIndices) setExcludedPauseIndices(new Set(p.excludedPauseIndices));
+            if (p.speechEnhance !== undefined) setSpeechEnhance(p.speechEnhance);
+          }
+        } catch(e) {}
+
+        setCurrentView('editor');
       } else {
         setCurrentView('upload');
       }
@@ -849,19 +964,91 @@ export default function App() {
     }
   };
 
+  // 💾 Lưu Tạm Toàn Bộ Dự Án Video
+  const handleSaveProject = () => {
+    if (!activeClip) return;
+    
+    const projectState = {
+      clip_id: activeClip.id,
+      clip: activeClip,
+      customTitle: customTitle || activeClip.title,
+      fontStyle,
+      captionPreset,
+      captionEffect,
+      titleConfig,
+      captionConfig,
+      brandConfig,
+      textLayers,
+      brolls,
+      soundFxMarkers,
+      excludedWordIndices: Array.from(excludedWordIndices),
+      excludedPauseIndices: Array.from(excludedPauseIndices),
+      aspectRatio,
+      videoLayout,
+      activeTransition,
+      speechEnhance,
+      savedAt: new Date().toISOString()
+    };
+
+    try {
+      localStorage.setItem(`opus_saved_project_${activeClip.id}`, JSON.stringify(projectState));
+      alert("✅ ĐÃ LƯU TẠM DỰ ÁN THÀNH CÔNG!\n\nToàn bộ thiết lập (tiêu đề, phụ đề, B-Roll, nhãn chữ, logo, sound fx và cắt ghép) đã được lưu trữ an toàn.");
+    } catch(e) {
+      alert("Lỗi lưu trữ: " + e.message);
+    }
+  };
+
   const handleSelectClipToPreview = (clip) => {
     setSelectedPreviewClip(clip);
   };
 
   const handleGoToEditor = (clip) => {
-    setActiveClip(clip);
-    setCurrentTime(clip.start_time);
-    setCustomTitle(clip.title);
-    setExcludedWordIndices(new Set());
-    setExcludedPauseIndices(new Set());
-    setBrolls([]);
-    setTextLayers([]);
-    setSoundFxMarkers([]);
+    setSelectedPreviewClip(null);
+    const targetClip = clip || (data?.viral_clips && data.viral_clips[0]);
+    if (!targetClip) {
+      setCurrentView('editor');
+      return;
+    }
+
+    setActiveClip(targetClip);
+    setCurrentTime(targetClip.start_time || 0);
+    setCustomTitle(targetClip.title || "Clip Studio");
+
+    // Khôi phục bản lưu tạm nếu có
+    let restored = false;
+    try {
+      const localSaved = localStorage.getItem(`opus_saved_project_${targetClip.id}`);
+      if (localSaved) {
+        const p = JSON.parse(localSaved);
+        if (p.customTitle) setCustomTitle(p.customTitle);
+        if (p.fontStyle) setFontStyle(p.fontStyle);
+        if (p.captionPreset) setCaptionPreset(p.captionPreset);
+        if (p.captionEffect) setCaptionEffect(p.captionEffect);
+        if (p.titleConfig) setTitleConfig(p.titleConfig);
+        if (p.captionConfig) setCaptionConfig(p.captionConfig);
+        if (p.brandConfig) setBrandConfig(p.brandConfig);
+        if (p.textLayers) setTextLayers(p.textLayers);
+        if (p.brolls) setBrolls(p.brolls);
+        if (p.soundFxMarkers) setSoundFxMarkers(p.soundFxMarkers);
+        if (p.excludedWordIndices) setExcludedWordIndices(new Set(p.excludedWordIndices));
+        if (p.excludedPauseIndices) setExcludedPauseIndices(new Set(p.excludedPauseIndices));
+        if (p.aspectRatio) setAspectRatio(p.aspectRatio);
+        if (p.videoLayout) setVideoLayout(p.videoLayout);
+        if (p.activeTransition) setActiveTransition(p.activeTransition);
+        if (p.speechEnhance !== undefined) setSpeechEnhance(p.speechEnhance);
+        if (p.clip?.scenes) setActiveClip(p.clip);
+        restored = true;
+      }
+    } catch(e) {}
+
+    if (!restored) {
+      setExcludedWordIndices(new Set());
+      setExcludedPauseIndices(new Set());
+      setBrolls([]);
+      setTextLayers([]);
+      setSoundFxMarkers([]);
+    }
+
     playedFxRef.current.clear();
     setCurrentView('editor');
   };
@@ -915,6 +1102,8 @@ export default function App() {
         <div className="flex-1 flex flex-col overflow-hidden">
           <TopBar
             onSpeechCleanup={() => setActiveCleanupMode('fillers')}
+            speechEnhance={speechEnhance}
+            onToggleSpeechEnhance={() => setSpeechEnhance(!speechEnhance)}
             aspectRatio={aspectRatio}
             setAspectRatio={setAspectRatio}
             videoLayout={videoLayout}
@@ -923,6 +1112,7 @@ export default function App() {
             setFaceTrackerEnabled={setFaceTrackerEnabled}
             onExport={handleExport}
             onExportHd={handleExportHd}
+            onSaveProject={handleSaveProject}
             isExportingHd={isExportingHd}
             videoTitle={data?.video_metadata?.title}
             onBackToDashboard={() => setCurrentView('dashboard')}
