@@ -4,15 +4,27 @@ import {
   Pause, 
   SkipBack, 
   SkipForward, 
-  Crop, 
+  Scissors, 
   Trash2, 
   Volume2, 
   VolumeX, 
   Sliders, 
   Search, 
   Plus, 
-  X 
+  X,
+  Zap,
+  Sparkles,
+  ChevronDown
 } from 'lucide-react';
+
+const TRANSITION_PRESETS = [
+  { id: 'zoom_in', name: 'Zoom In Punch', desc: 'Phóng to thu hút thị giác' },
+  { id: 'flash_white', name: 'Flash White', desc: 'Chớp sáng chuyển cảnh' },
+  { id: 'glitch', name: 'Glitch Cyber', desc: 'Hiệu ứng nhiễu sóng số' },
+  { id: 'fade_black', name: 'Fade Black', desc: 'Mờ dần vào nền đen' },
+  { id: 'blur', name: 'Blur Dissolve', desc: 'Hòa tan làm mờ mềm mại' },
+  { id: 'none', name: 'Không chuyển cảnh', desc: 'Cắt thẳng liền mạch' },
+];
 
 export default function OpusTimeline({
   clip,
@@ -30,30 +42,43 @@ export default function OpusTimeline({
   onOpenAudioTab,
   onUpdateSoundFxTime,
   onDeleteSoundFx,
-  onDeleteBroll
+  onDeleteBroll,
+  onDeleteScene,
+  onUpdateSceneTransition
 }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [volume, setVolume] = useState(100);
   const [isMuted, setIsMuted] = useState(false);
   const [isVolumeOpen, setIsVolumeOpen] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
+
+  // Selection states
+  const [selectedSceneId, setSelectedSceneId] = useState(null);
   const [selectedMarkerId, setSelectedMarkerId] = useState(null);
   const [selectedBrollId, setSelectedBrollId] = useState(null);
+  const [activeTransitionPopoverId, setActiveTransitionPopoverId] = useState(null);
   const [draggingId, setDraggingId] = useState(null);
 
   const volumeRef = useRef(null);
   const containerTrackRef = useRef(null);
+  const transitionPopoverRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (volumeRef.current && !volumeRef.current.contains(event.target)) {
         setIsVolumeOpen(false);
       }
+      if (transitionPopoverRef.current && !transitionPopoverRef.current.contains(event.target)) {
+        setActiveTransitionPopoverId(null);
+      }
       if (event.target.closest('.sound-fx-marker') === null) {
         setSelectedMarkerId(null);
       }
       if (event.target.closest('.broll-track-block') === null) {
         setSelectedBrollId(null);
+      }
+      if (event.target.closest('.scene-track-block') === null && event.target.closest('.transition-badge-btn') === null) {
+        setSelectedSceneId(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -64,7 +89,12 @@ export default function OpusTimeline({
   const clipEnd = clip?.end_time || 60;
   const clipDuration = Math.max(1, clipEnd - clipStart);
 
-  // Global mouse handlers for Drag and Drop on Timeline Markers
+  // Default scenes list if not yet split
+  const scenes = clip?.scenes && clip.scenes.length > 0 ? clip.scenes : [
+    { id: `${clip?.id || 'clip'}_sc0`, title: clip?.title || 'Phân cảnh chính', start_time: clipStart, end_time: clipEnd, transition: null }
+  ];
+
+  // Global mouse handlers for Drag and Drop on Sound FX Timeline Markers
   useEffect(() => {
     const handleGlobalMouseMove = (e) => {
       if (!draggingId || !containerTrackRef.current) return;
@@ -111,8 +141,23 @@ export default function OpusTimeline({
 
   const progressPercent = Math.max(0, Math.min(100, ((currentTime - clipStart) / clipDuration) * 100));
 
+  const handleDeleteActiveSelection = () => {
+    if (selectedSceneId && scenes.length > 1 && onDeleteScene) {
+      onDeleteScene(selectedSceneId);
+      setSelectedSceneId(null);
+    } else if (selectedBrollId && onDeleteBroll) {
+      onDeleteBroll(selectedBrollId);
+      setSelectedBrollId(null);
+    } else if (selectedMarkerId && onDeleteSoundFx) {
+      onDeleteSoundFx(selectedMarkerId);
+      setSelectedMarkerId(null);
+    } else if (onDeleteSelectedLayer) {
+      onDeleteSelectedLayer();
+    }
+  };
+
   return (
-    <div className={`${isCollapsed ? 'h-14' : 'h-40'} bg-[#090a0f] border-t border-[#1c1f2e] flex flex-col justify-between p-2 select-none font-sans transition-all duration-200`}>
+    <div className={`${isCollapsed ? 'h-14' : 'h-44'} bg-[#090a0f] border-t border-[#1c1f2e] flex flex-col justify-between p-2 select-none font-sans transition-all duration-200 relative`}>
       {/* ── Top Controls Bar ── */}
       <div className="flex items-center justify-between px-2 text-xs text-slate-400">
         <div className="flex items-center gap-3">
@@ -123,27 +168,35 @@ export default function OpusTimeline({
             <span className="w-4 h-4 rounded-md border border-slate-500 flex items-center justify-center text-[9px] font-bold">
               {isCollapsed ? '+' : '-'}
             </span>
-            <span className="font-semibold text-slate-200">{isCollapsed ? 'Show timeline' : 'Hide timeline'}</span>
+            <span className="font-semibold text-slate-200">{isCollapsed ? 'Hiện Timeline' : 'Thu Gọn Timeline'}</span>
           </button>
 
           <div className="h-3.5 w-[1px] bg-[#242738] mx-0.5" />
 
+          {/* Split at Playhead */}
           <button 
             onClick={onSplitAtPlayhead}
-            title="Cắt tách phân cảnh (Split)" 
-            className="p-1 rounded-lg hover:bg-[#1c1e2b] text-slate-300 hover:text-white transition-colors"
+            title="Cắt đôi phân cảnh tại con trỏ phát (Split) để chèn Transitions chuyển cảnh" 
+            className="px-2 py-1 rounded-lg bg-[#181a27] hover:bg-indigo-600 border border-[#2b2f44] text-slate-200 hover:text-white flex items-center gap-1.5 font-bold transition-all shadow-sm active:scale-95"
           >
-            <Crop className="w-4 h-4" />
+            <Scissors className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-[11px]">Cắt Phân Cảnh (Split)</span>
           </button>
 
+          {/* Delete Selection */}
           <button 
-            onClick={onDeleteSelectedLayer}
-            title="Xóa phân cảnh / layer được chọn" 
-            className="p-1 rounded-lg hover:bg-[#1c1e2b] text-slate-300 hover:text-rose-400 transition-colors"
+            onClick={handleDeleteActiveSelection}
+            title="Xóa đoạn phân cảnh, B-roll hoặc âm thanh đang được chọn" 
+            className={`p-1.5 rounded-lg border transition-colors ${
+              selectedSceneId || selectedBrollId || selectedMarkerId
+                ? 'bg-rose-950/70 border-rose-500 text-rose-300 hover:bg-rose-600 hover:text-white ring-1 ring-rose-500 animate-pulse'
+                : 'bg-[#141624] border-[#24273a] text-slate-400 hover:text-rose-400'
+            }`}
           >
             <Trash2 className="w-4 h-4" />
           </button>
 
+          {/* Volume control */}
           <div className="relative" ref={volumeRef}>
             <button 
               onClick={() => setIsVolumeOpen(!isVolumeOpen)}
@@ -187,11 +240,13 @@ export default function OpusTimeline({
           <button 
             onClick={onOpenAudioTab}
             className="p-1.5 rounded-lg bg-[#1e2130] text-slate-200 border border-[#2c3044] hover:text-white hover:bg-[#282d42] transition-colors"
+            title="Mở bảng Mixer Audio"
           >
             <Sliders className="w-3.5 h-3.5" />
           </button>
         </div>
 
+        {/* Center: Play Controls */}
         <div className="flex items-center gap-4">
           <button 
             onClick={() => onSeek(clipStart)}
@@ -223,6 +278,7 @@ export default function OpusTimeline({
           </span>
         </div>
 
+        {/* Zoom */}
         <div className="flex items-center gap-2">
           <Search className="w-3.5 h-3.5 text-slate-400" />
           <input
@@ -237,12 +293,12 @@ export default function OpusTimeline({
         </div>
       </div>
 
-      {/* ── Tracks Container ── */}
+      {/* ── Multi-Track Timeline Container ── */}
       {!isCollapsed && (
         <div className="flex items-center gap-2 mt-1">
           <button
             onClick={onAddMediaTrack}
-            className="w-8 h-22 rounded-xl bg-[#131520] hover:bg-[#1e2030] border border-[#24273a] text-slate-400 hover:text-white flex items-center justify-center transition-colors shrink-0"
+            className="w-8 h-28 rounded-xl bg-[#131520] hover:bg-[#1e2030] border border-[#24273a] text-slate-400 hover:text-white flex items-center justify-center transition-colors shrink-0"
             title="Thêm B-Roll hoặc Phương tiện"
           >
             <Plus className="w-4 h-4" />
@@ -256,55 +312,39 @@ export default function OpusTimeline({
               const ratio = Math.max(0, Math.min(1, clickX / rect.width));
               onSeek(clipStart + ratio * clipDuration);
             }}
-            className="flex-1 relative bg-[#07080d] h-24 rounded-xl border border-[#1d2030] overflow-hidden cursor-pointer group flex flex-col justify-between"
+            className="flex-1 h-28 bg-[#10121a] rounded-xl border border-[#232638] relative overflow-hidden flex flex-col cursor-pointer"
           >
-            {/* Timecode Ruler */}
-            <div className="h-4 px-3 flex items-center justify-between text-[9px] font-mono text-slate-500 border-b border-[#161824]">
-              <span>0s</span>
-              <span>{(clipDuration * 0.25).toFixed(0)}s</span>
-              <span>{(clipDuration * 0.5).toFixed(0)}s</span>
-              <span>{(clipDuration * 0.75).toFixed(0)}s</span>
-              <span>{clipDuration.toFixed(0)}s</span>
-            </div>
-
-            {/* Track 1: Tags & Draggable Sound FX & B-Roll Blocks */}
-            <div className="h-6 px-2 relative flex items-center gap-1.5 z-10">
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#244b32] text-[#4ade80] border border-[#22c55e]/40 flex items-center gap-1">
-                <span>T</span>
-                <span>Luật</span>
-              </span>
-
+            {/* ── TRACK 1: Overlays, B-Rolls & Sound FX ── */}
+            <div className="h-8 border-b border-[#1c1f2e] bg-[#0c0e15] relative overflow-hidden">
               {/* Sound FX Markers */}
               {soundFxMarkers.map((s) => {
-                const markerPercent = Math.max(0, Math.min(95, (s.time / clipDuration) * 100));
+                const percent = Math.max(0, Math.min(98, (s.time / clipDuration) * 100));
                 const isSelected = selectedMarkerId === s.id;
-                
                 return (
                   <div
-                    key={s.id}
-                    style={{ left: `${markerPercent}%` }}
+                    key={s.id || `s_${s.time}`}
+                    style={{ left: `${percent}%` }}
                     onMouseDown={(e) => handleMarkerMouseDown(e, s.id)}
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedMarkerId(s.id);
                     }}
-                    className={`sound-fx-marker absolute top-0.5 -translate-x-1/2 flex items-center gap-1 px-1.5 py-0.5 rounded-md font-bold text-[9px] border shadow-md cursor-grab active:cursor-grabbing transition-all ${
+                    title={`Âm thanh: ${s.name} (${s.time.toFixed(1)}s) - Giữ & kéo để dời vị trí`}
+                    className={`sound-fx-marker absolute top-1 -translate-x-1/2 px-1.5 py-0.5 rounded text-[8px] font-mono font-bold flex items-center gap-0.5 cursor-grab active:cursor-grabbing z-30 transition-shadow ${
                       isSelected
-                        ? 'bg-rose-700 text-white border-white scale-105 ring-2 ring-indigo-400 z-30'
-                        : 'bg-rose-600 text-white border-rose-400 hover:bg-rose-500'
+                        ? 'bg-rose-500 text-white ring-2 ring-white shadow-lg'
+                        : 'bg-rose-600/90 hover:bg-rose-500 text-white shadow-md'
                     }`}
                   >
-                    <span>FX:</span>
-                    <span className="truncate max-w-[70px]">{s.name} ({s.time.toFixed(1)}s)</span>
-                    
+                    <span>🔔</span>
+                    <span className="truncate max-w-[50px]">{s.name}</span>
+
                     {isSelected && (
                       <button
                         onMouseDown={(e) => e.stopPropagation()}
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (onDeleteSoundFx) {
-                            onDeleteSoundFx(s.id);
-                          }
+                          if (onDeleteSoundFx) onDeleteSoundFx(s.id);
                           setSelectedMarkerId(null);
                         }}
                         className="ml-1 w-3 h-3 rounded-full bg-white text-rose-600 text-[8px] font-black flex items-center justify-center hover:bg-rose-100 transition-colors"
@@ -330,7 +370,7 @@ export default function OpusTimeline({
                       e.stopPropagation();
                       setSelectedBrollId(b.id);
                     }}
-                    className={`broll-track-block absolute top-0.5 h-5 rounded-md border flex items-center justify-between px-1.5 text-[9px] font-bold shadow-md cursor-pointer transition-all ${
+                    className={`broll-track-block absolute top-1 h-6 rounded-md border flex items-center justify-between px-1.5 text-[9px] font-bold shadow-md cursor-pointer transition-all ${
                       isSelected
                         ? 'bg-amber-600 text-white border-white ring-2 ring-amber-400 z-30'
                         : 'bg-amber-600/80 hover:bg-amber-600 text-white border-amber-400'
@@ -346,9 +386,7 @@ export default function OpusTimeline({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (onDeleteBroll) {
-                            onDeleteBroll(b.id);
-                          }
+                          if (onDeleteBroll) onDeleteBroll(b.id);
                           setSelectedBrollId(null);
                         }}
                         className="ml-1 w-3 h-3 rounded-full bg-white text-amber-800 text-[8px] font-black flex items-center justify-center hover:bg-amber-100 transition-colors shrink-0"
@@ -361,52 +399,162 @@ export default function OpusTimeline({
               })}
             </div>
 
-            {/* Track 2 & 3: Video Filmstrip & Audio Waveform */}
-            <div className="flex-1 relative flex items-center overflow-hidden bg-[#07080d] border-t border-[#181a26]">
-              <div className="absolute inset-0 flex items-center opacity-50">
-                {Array.from({ length: 30 }).map((_, i) => (
-                  <div 
-                    key={i} 
-                    className="flex-1 h-full border-r border-[#151724] bg-gradient-to-b from-[#1b1e2c] to-[#0e1017]" 
-                  />
-                ))}
-              </div>
+            {/* ── TRACK 2: Multi-Scene Video Segments & Transitions ── */}
+            <div className="flex-1 relative flex items-center overflow-hidden bg-[#07080d]">
+              {scenes.map((scene, idx) => {
+                const scStartRel = Math.max(0, scene.start_time - clipStart);
+                const scEndRel = Math.min(clipDuration, scene.end_time - clipStart);
+                const scDur = Math.max(0.1, scEndRel - scStartRel);
 
-              <div className="absolute inset-0 flex items-center justify-around px-2 z-10 pointer-events-none opacity-70">
-                {Array.from({ length: 140 }).map((_, i) => {
-                  const h = 12 + Math.sin(i * 0.4) * 12 + (i % 6) * 4;
-                  return (
+                const leftPct = (scStartRel / clipDuration) * 100;
+                const widthPct = (scDur / clipDuration) * 100;
+                const isSelected = selectedSceneId === scene.id;
+
+                return (
+                  <React.Fragment key={scene.id || `sc_${idx}`}>
+                    {/* Scene Block */}
                     <div
-                      key={i}
-                      className="w-[1.5px] bg-slate-400/80 rounded-full"
-                      style={{ height: `${Math.min(22, h)}px` }}
-                    />
-                  );
-                })}
-              </div>
+                      style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedSceneId(scene.id);
+                      }}
+                      className={`scene-track-block absolute top-1 bottom-1 rounded-lg border flex flex-col justify-between p-1.5 transition-all cursor-pointer group ${
+                        isSelected
+                          ? 'bg-gradient-to-r from-indigo-900/80 via-purple-900/80 to-indigo-900/80 border-indigo-400 ring-2 ring-indigo-400 z-20 shadow-xl'
+                          : 'bg-gradient-to-r from-[#171926] to-[#12141f] hover:from-[#202334] hover:to-[#1a1c2b] border-[#2a2e45]'
+                      }`}
+                    >
+                      {/* Scene Header */}
+                      <div className="flex items-center justify-between text-[10px] text-slate-300 font-bold">
+                        <div className="flex items-center gap-1 truncate">
+                          <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" />
+                          <span className="truncate">{scene.title || `Đoạn ${idx + 1}`}</span>
+                        </div>
+                        <span className="font-mono text-[9px] text-slate-400 shrink-0">
+                          {scDur.toFixed(1)}s
+                        </span>
+                      </div>
 
-              <div className="absolute left-0 top-0 bottom-0 w-2.5 bg-slate-600/60 flex items-center justify-center text-[8px] text-white font-mono cursor-ew-resize">
-                ||
-              </div>
-              <div className="absolute right-0 top-0 bottom-0 w-2.5 bg-slate-600/60 flex items-center justify-center text-[8px] text-white font-mono cursor-ew-resize">
-                ||
-              </div>
+                      {/* Waveform graphic pattern */}
+                      <div className="flex items-center justify-around opacity-40 h-3">
+                        {Array.from({ length: 15 }).map((_, i) => (
+                          <div
+                            key={i}
+                            className="w-[1.5px] bg-indigo-300 rounded-full"
+                            style={{ height: `${4 + (i % 4) * 3}px` }}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Quick Delete Scene Button on Selection */}
+                      {isSelected && scenes.length > 1 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onDeleteScene) onDeleteScene(scene.id);
+                            setSelectedSceneId(null);
+                          }}
+                          title="Xóa đoạn này khỏi video"
+                          className="absolute top-1 right-1 w-4 h-4 rounded bg-rose-600 hover:bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-md z-30"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Transition Badge between Scene [idx] and Scene [idx + 1] */}
+                    {idx < scenes.length - 1 && (
+                      <div
+                        style={{ left: `${leftPct + widthPct}%` }}
+                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-30 pointer-events-auto"
+                      >
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveTransitionPopoverId(
+                              activeTransitionPopoverId === scene.id ? null : scene.id
+                            );
+                          }}
+                          className={`transition-badge-btn px-1.5 py-0.5 rounded-md border flex items-center gap-1 shadow-lg text-[8px] font-bold transition-transform hover:scale-110 active:scale-95 ${
+                            scene.transition && scene.transition !== 'none'
+                              ? 'bg-amber-500 text-black border-amber-300 ring-1 ring-amber-400'
+                              : 'bg-[#181b29] hover:bg-[#252a40] text-amber-300 border-[#3d4464]'
+                          }`}
+                          title="Click để chọn hiệu ứng chuyển cảnh Transitions"
+                        >
+                          <Zap className="w-2.5 h-2.5 fill-current" />
+                          <span className="uppercase">
+                            {scene.transition ? scene.transition.replace('_', ' ') : 'Chuyển Cảnh'}
+                          </span>
+                        </button>
+
+                        {/* Transition Popover Selector */}
+                        {activeTransitionPopoverId === scene.id && (
+                          <div
+                            ref={transitionPopoverRef}
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 bg-[#12141e] border border-[#30364f] rounded-2xl shadow-2xl p-2 z-50 space-y-1 animate-fade-in"
+                          >
+                            <div className="flex items-center justify-between pb-1 border-b border-[#23283e] text-[10px] font-bold text-white px-1">
+                              <span className="flex items-center gap-1">
+                                <Sparkles className="w-3 h-3 text-amber-400" />
+                                Hiệu Ứng Chuyển Cảnh
+                              </span>
+                              <button
+                                onClick={() => setActiveTransitionPopoverId(null)}
+                                className="text-slate-400 hover:text-white"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+
+                            <div className="max-h-48 overflow-y-auto space-y-1 pt-1">
+                              {TRANSITION_PRESETS.map((preset) => (
+                                <button
+                                  key={preset.id}
+                                  onClick={() => {
+                                    if (onUpdateSceneTransition) {
+                                      onUpdateSceneTransition(scene.id, preset.id);
+                                    }
+                                    setActiveTransitionPopoverId(null);
+                                  }}
+                                  className={`w-full p-1.5 rounded-lg text-left text-[10px] transition-colors flex items-center justify-between ${
+                                    (scene.transition || 'none') === preset.id
+                                      ? 'bg-amber-500 text-black font-bold'
+                                      : 'hover:bg-[#1f2334] text-slate-300'
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="font-semibold">{preset.name}</div>
+                                    <div className="text-[8px] opacity-75">{preset.desc}</div>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </div>
 
             {/* Playhead */}
             <div
-              className="absolute top-0 bottom-0 w-[1.5px] bg-white z-30 pointer-events-none shadow-[0_0_10px_rgba(255,255,255,1)]"
+              className="absolute top-0 bottom-0 w-[2px] bg-white z-40 pointer-events-none shadow-[0_0_12px_rgba(255,255,255,1)]"
               style={{ left: `${progressPercent}%` }}
             >
-              <div className="absolute -top-1 -left-[6px] w-3.5 h-5 rounded-full bg-white text-black font-bold text-[9px] flex items-center justify-center shadow-lg border border-black/30">
-                0
+              <div className="absolute -top-1 -left-[5px] w-3 h-4 rounded-sm bg-white text-black font-bold text-[8px] flex items-center justify-center shadow-lg border border-black/40">
+                ▼
               </div>
             </div>
           </div>
 
           <button
             onClick={onAddMediaTrack}
-            className="w-8 h-22 rounded-xl bg-[#131520] hover:bg-[#1e2030] border border-[#24273a] text-slate-400 hover:text-white flex items-center justify-center transition-colors shrink-0"
+            className="w-8 h-28 rounded-xl bg-[#131520] hover:bg-[#1e2030] border border-[#24273a] text-slate-400 hover:text-white flex items-center justify-center transition-colors shrink-0"
             title="Thêm B-Roll hoặc Phương tiện"
           >
             <Plus className="w-4 h-4" />

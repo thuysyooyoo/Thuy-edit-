@@ -31,6 +31,7 @@ export default function OpusCanvasPreview({
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(customTitle || clip?.title || '');
   const [transitionTriggered, setTransitionTriggered] = useState(false);
+  const [currentTransitionEffect, setCurrentTransitionEffect] = useState(activeTransition);
   const [isAiSegmenting, setIsAiSegmenting] = useState(false);
   
   const brollVideoRef = useRef(null);
@@ -39,15 +40,35 @@ export default function OpusCanvasPreview({
   const tempCanvasRef = useRef(null);
   const selfieSegRef = useRef(null);
   const animFrameIdRef = useRef(null);
+  const lastTriggeredSceneTransitionRef = useRef(null);
 
   const activePhrase = words.filter(w => Math.abs(w.start - currentTime) <= 1.4);
 
   // Trigger transition effect on scene change or seek
   useEffect(() => {
+    setCurrentTransitionEffect(activeTransition);
     setTransitionTriggered(true);
     const timer = setTimeout(() => setTransitionTriggered(false), 450);
     return () => clearTimeout(timer);
   }, [activeTransition, clip?.id]);
+
+  // Trigger dynamic transition effects at each Split Cut point on the timeline
+  useEffect(() => {
+    if (!clip?.scenes || clip.scenes.length <= 1) return;
+    const matchScene = clip.scenes.find(
+      s => s.transition && s.transition !== 'none' && Math.abs(s.end_time - currentTime) <= 0.35
+    );
+
+    if (matchScene && lastTriggeredSceneTransitionRef.current !== matchScene.id) {
+      lastTriggeredSceneTransitionRef.current = matchScene.id;
+      setCurrentTransitionEffect(matchScene.transition);
+      setTransitionTriggered(true);
+      const timer = setTimeout(() => setTransitionTriggered(false), 500);
+      return () => clearTimeout(timer);
+    } else if (!matchScene) {
+      lastTriggeredSceneTransitionRef.current = null;
+    }
+  }, [currentTime, clip?.scenes]);
 
   const {
     fontFamily = 'Montserrat',
@@ -394,14 +415,20 @@ export default function OpusCanvasPreview({
         {/* ── TRANSITION OVERLAYS ── */}
         {transitionTriggered && (
           <div className="absolute inset-0 pointer-events-none z-30 flex items-center justify-center">
-            {activeTransition === 'flash_white' && (
+            {currentTransitionEffect === 'flash_white' && (
               <div className="absolute inset-0 bg-white animate-fade-out" />
             )}
-            {activeTransition === 'glitch' && (
+            {currentTransitionEffect === 'glitch' && (
               <div className="absolute inset-0 bg-indigo-500/30 mix-blend-color-dodge animate-pulse" />
             )}
-            {activeTransition === 'zoom_in' && (
+            {currentTransitionEffect === 'zoom_in' && (
               <div className="absolute inset-0 border-4 border-indigo-400 scale-95 animate-ping opacity-60" />
+            )}
+            {currentTransitionEffect === 'fade_black' && (
+              <div className="absolute inset-0 bg-black animate-fade-out" />
+            )}
+            {currentTransitionEffect === 'blur' && (
+              <div className="absolute inset-0 backdrop-blur-md animate-fade-out" />
             )}
           </div>
         )}

@@ -567,45 +567,79 @@ export default function App() {
   const handleSplitAtPlayhead = () => {
     if (!activeClip || !data) return;
     const splitPoint = currentTime;
-    if (splitPoint <= activeClip.start_time + 1 || splitPoint >= activeClip.end_time - 1) {
-      alert("Không thể cắt tách sát biên phân cảnh (cần cách tối thiểu 1 giây).");
+    const clipStart = activeClip.start_time || 0;
+    const clipEnd = activeClip.end_time || 60;
+
+    const currentScenes = activeClip.scenes && activeClip.scenes.length > 0 ? activeClip.scenes : [
+      { id: `${activeClip.id}_sc0`, title: 'Đoạn 1', start_time: clipStart, end_time: clipEnd, transition: null }
+    ];
+
+    const targetIdx = currentScenes.findIndex(
+      s => splitPoint > s.start_time + 0.5 && splitPoint < s.end_time - 0.5
+    );
+
+    if (targetIdx === -1) {
+      alert("Không thể cắt tách sát biên phân cảnh (cần cách điểm đầu/cuối tối thiểu 0.5 giây).");
       return;
     }
 
-    const clip1 = {
-      ...activeClip,
-      id: `${activeClip.id}_part1`,
-      title: `${activeClip.title} (Phần 1)`,
+    const targetScene = currentScenes[targetIdx];
+    const baseTitle = targetScene.title.replace(/\s*\([A-Z0-9]+\)$/, '');
+
+    const sceneA = {
+      ...targetScene,
+      id: `sc_${Date.now()}_${targetIdx}_A`,
+      title: `${baseTitle} (A)`,
       end_time: splitPoint,
-      duration: splitPoint - activeClip.start_time,
-      hook_score: Math.max(60, activeClip.hook_score - 2)
+      transition: 'zoom_in' // Mặc định hiệu ứng chuyển cảnh khi vừa cắt đôi
     };
 
-    const clip2 = {
-      ...activeClip,
-      id: `${activeClip.id}_part2`,
-      title: `${activeClip.title} (Phần 2)`,
+    const sceneB = {
+      ...targetScene,
+      id: `sc_${Date.now()}_${targetIdx}_B`,
+      title: `${baseTitle} (B)`,
       start_time: splitPoint,
-      duration: activeClip.end_time - splitPoint,
-      hook_score: Math.max(60, activeClip.hook_score - 4)
+      transition: targetScene.transition || null
     };
 
-    const updatedClips = [];
-    data.viral_clips.forEach(c => {
-      if (c.id === activeClip.id) {
-        updatedClips.push(clip1, clip2);
-      } else {
-        updatedClips.push(c);
+    const nextScenes = [...currentScenes];
+    nextScenes.splice(targetIdx, 1, sceneA, sceneB);
+
+    setActiveClip({
+      ...activeClip,
+      scenes: nextScenes
+    });
+  };
+
+  const handleDeleteScene = (sceneId) => {
+    if (!activeClip) return;
+    const currentScenes = activeClip.scenes || [];
+    if (currentScenes.length <= 1) {
+      alert("Không thể xóa hết tất cả phân cảnh. Phải giữ lại ít nhất 1 đoạn video.");
+      return;
+    }
+
+    const nextScenes = currentScenes.filter(s => s.id !== sceneId);
+    setActiveClip({
+      ...activeClip,
+      scenes: nextScenes
+    });
+  };
+
+  const handleUpdateSceneTransition = (sceneId, transitionType) => {
+    if (!activeClip) return;
+    const currentScenes = activeClip.scenes || [];
+    const nextScenes = currentScenes.map(s => {
+      if (s.id === sceneId) {
+        return { ...s, transition: transitionType === 'none' ? null : transitionType };
       }
+      return s;
     });
 
-    setData({
-      ...data,
-      viral_clips: updatedClips
+    setActiveClip({
+      ...activeClip,
+      scenes: nextScenes
     });
-
-    setActiveClip(clip1);
-    alert(`Đã cắt tách thành công phân cảnh tại vị trí ${splitPoint.toFixed(1)}s!`);
   };
 
   const handleDeleteSelectedLayer = () => {
@@ -879,6 +913,8 @@ export default function App() {
             onUpdateSoundFxTime={handleUpdateSoundFxTime}
             onDeleteSoundFx={handleDeleteSoundFx}
             onDeleteBroll={(id) => setBrolls(prev => prev.filter(b => b.id !== id))}
+            onDeleteScene={handleDeleteScene}
+            onUpdateSceneTransition={handleUpdateSceneTransition}
           />
 
           {/* AI Producer Copilot Drawer */}
