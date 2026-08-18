@@ -67,14 +67,20 @@ export default function App() {
     accentColor: '#ff007a'
   });
 
-  // Top Hook Title Style & Position
+  // Top Hook Title Style, Position, Scale & Visibility
   const [titleConfig, setTitleConfig] = useState({
+    visible: true,
     style: 'pill_white', // 'pill_white' | 'neon_cyber' | 'gradient_gold' | 'yellow_impact' | 'minimal'
+    scale: 100, // percentage 50 - 250
     pos: { x: 50, y: 10 } // Draggable percentage position
   });
 
-  // Subtitle / Caption Position
-  const [captionPos, setCaptionPos] = useState({ x: 50, y: 84 }); // Draggable percentage position
+  // Subtitle / Caption Position, Scale & Visibility
+  const [captionConfig, setCaptionConfig] = useState({
+    visible: true,
+    scale: 100, // percentage 50 - 250
+    pos: { x: 50, y: 84 } // Draggable percentage position
+  });
 
   // Auto vs Manual Sound FX & Ducking (Phiên 3)
   const [autoWhoosh, setAutoWhoosh] = useState(true);
@@ -576,16 +582,21 @@ export default function App() {
     setExcludedPauseIndices(next);
   };
 
-  const handleAddTextLayer = (title, style = 'header') => {
+  const handleAddTextLayer = (title, style = 'header', scale = 100) => {
     setTextLayers(prev => [
       ...prev,
       {
         id: `tl_${Date.now()}_${prev.length}`,
         text: title,
         style: style,
+        scale: scale,
         pos: { x: 50, y: 60 + (prev.length % 4) * 8 }
       }
     ]);
+  };
+
+  const handleUpdateTextLayer = (id, updates) => {
+    setTextLayers(prev => prev.map(tl => tl.id === id ? { ...tl, ...updates } : tl));
   };
 
   const handleUpdateTextLayerPos = (id, pos) => {
@@ -841,7 +852,7 @@ export default function App() {
               />
             </div>
 
-            {/* Center: Video Canvas Preview với Full Live Visual Transformations & Kéo thả di chuyển */}
+            {/* Center: Video Canvas Preview với Full Live Visual Transformations, Kéo Thả, Zoom To Nhỏ & Sửa/Xóa */}
             <div className="col-span-4 h-full overflow-hidden">
               <OpusCanvasPreview
                 videoRef={videoRef}
@@ -849,6 +860,7 @@ export default function App() {
                 words={data?.transcript?.words || []}
                 currentTime={currentTime}
                 captionPreset={captionPreset}
+                setCaptionPreset={setCaptionPreset}
                 captionEffect={captionEffect}
                 customTitle={customTitle}
                 setCustomTitle={setCustomTitle}
@@ -861,6 +873,7 @@ export default function App() {
                 brolls={brolls}
                 textLayers={textLayers}
                 fontStyle={fontStyle}
+                setFontStyle={setFontStyle}
                 aiEmoji={aiEmoji}
                 autoCensor={autoCensor}
                 speakerColors={speakerColors}
@@ -868,12 +881,17 @@ export default function App() {
                 onUpdateBrandConfig={setBrandConfig}
                 titleConfig={titleConfig}
                 onUpdateTitleConfig={setTitleConfig}
-                captionPos={captionPos}
-                onUpdateCaptionPos={setCaptionPos}
+                captionConfig={captionConfig}
+                onUpdateCaptionConfig={setCaptionConfig}
+                captionPos={captionConfig.pos}
+                onUpdateCaptionPos={(newPos) => setCaptionConfig(prev => ({ ...prev, pos: newPos }))}
+                onUpdateTextLayer={handleUpdateTextLayer}
                 onUpdateTextLayerPos={handleUpdateTextLayerPos}
                 activeTransition={activeTransition}
                 onSelectElementToCustomize={handleSelectElementToCustomize}
                 onRemoveTextLayer={handleRemoveTextLayer}
+                onRemoveBroll={(brollId) => setBrolls(prev => prev.filter(b => b.id !== brollId))}
+                onEditPhraseText={handleEditPhraseText}
               />
             </div>
 

@@ -1,5 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Edit3, Settings, Sparkles, Smile, ShieldAlert, Check, Film, X, UserCheck, Move, Crown } from 'lucide-react';
+import { 
+  Play, 
+  Pause, 
+  Edit3, 
+  Settings, 
+  Sparkles, 
+  Smile, 
+  ShieldAlert, 
+  Check, 
+  Film, 
+  X, 
+  UserCheck, 
+  Move, 
+  Crown, 
+  ZoomIn, 
+  ZoomOut, 
+  Trash2, 
+  Plus, 
+  Minus, 
+  Type,
+  Maximize2
+} from 'lucide-react';
 
 export default function OpusCanvasPreview({ 
   videoRef, 
@@ -7,6 +28,7 @@ export default function OpusCanvasPreview({
   words = [], 
   currentTime, 
   captionPreset = 'Karaoke',
+  setCaptionPreset,
   captionEffect = 'pop',
   customTitle,
   setCustomTitle,
@@ -19,23 +41,32 @@ export default function OpusCanvasPreview({
   brolls = [],
   textLayers = [],
   fontStyle = {},
+  setFontStyle,
   aiEmoji = false,
   autoCensor = false,
   speakerColors = true,
   brandConfig = { showLogo: true, logoUrl: null, logoText: 'OPUS STUDIO', logoSize: 65, logoOpacity: 90, pos: { x: 82, y: 6 } },
   onUpdateBrandConfig,
-  titleConfig = { style: 'pill_white', pos: { x: 50, y: 10 } },
+  titleConfig = { visible: true, style: 'pill_white', scale: 100, pos: { x: 50, y: 10 } },
   onUpdateTitleConfig,
+  captionConfig = { visible: true, scale: 100, pos: { x: 50, y: 84 } },
+  onUpdateCaptionConfig,
   captionPos = { x: 50, y: 84 },
   onUpdateCaptionPos,
+  onUpdateTextLayer,
   onUpdateTextLayerPos,
   activeTransition = 'zoom_in',
   onSelectElementToCustomize,
   onRemoveTextLayer,
-  onRemoveBroll
+  onRemoveBroll,
+  onEditPhraseText
 }) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(customTitle || clip?.title || '');
+  const [editingPhraseModal, setEditingPhraseModal] = useState(null);
+  const [editingTextLayerModal, setEditingTextLayerModal] = useState(null);
+  const [selectedElement, setSelectedElement] = useState(null); // { type: 'title' | 'caption' | 'logo' | 'textLayer' | 'broll', id: null }
+
   const [transitionTriggered, setTransitionTriggered] = useState(false);
   const [currentTransitionEffect, setCurrentTransitionEffect] = useState(activeTransition);
   const [isAiSegmenting, setIsAiSegmenting] = useState(false);
@@ -49,11 +80,15 @@ export default function OpusCanvasPreview({
   const lastTriggeredSceneTransitionRef = useRef(null);
   const canvasContainerRef = useRef(null);
 
+  // Drag & Resize states
   const [activeDragging, setActiveDragging] = useState(null);
+  const [activeResizing, setActiveResizing] = useState(null);
 
+  // Start Move / Drag
   const startDragging = (e, type, id = null, currentPos) => {
     e.stopPropagation();
     e.preventDefault();
+    setSelectedElement({ type, id });
     setActiveDragging({
       type,
       id,
@@ -64,31 +99,74 @@ export default function OpusCanvasPreview({
     });
   };
 
+  // Start Resize / Scale Handle
+  const startResizing = (e, type, id = null, currentScale, currentSize) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setSelectedElement({ type, id });
+    setActiveResizing({
+      type,
+      id,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startScale: currentScale || 100,
+      startSize: currentSize || 65,
+      startFontSize: fontStyle?.fontSize || 40
+    });
+  };
+
   useEffect(() => {
     const handleMouseMove = (e) => {
-      if (!activeDragging || !canvasContainerRef.current) return;
-      const rect = canvasContainerRef.current.getBoundingClientRect();
-      const deltaXPct = ((e.clientX - activeDragging.startMouseX) / rect.width) * 100;
-      const deltaYPct = ((e.clientY - activeDragging.startMouseY) / rect.height) * 100;
-      const newX = Math.max(6, Math.min(94, Math.round(activeDragging.startPosX + deltaXPct)));
-      const newY = Math.max(5, Math.min(95, Math.round(activeDragging.startPosY + deltaYPct)));
+      // DRAGGING
+      if (activeDragging && canvasContainerRef.current) {
+        const rect = canvasContainerRef.current.getBoundingClientRect();
+        const deltaXPct = ((e.clientX - activeDragging.startMouseX) / rect.width) * 100;
+        const deltaYPct = ((e.clientY - activeDragging.startMouseY) / rect.height) * 100;
+        const newX = Math.max(6, Math.min(94, Math.round(activeDragging.startPosX + deltaXPct)));
+        const newY = Math.max(5, Math.min(95, Math.round(activeDragging.startPosY + deltaYPct)));
 
-      if (activeDragging.type === 'title' && onUpdateTitleConfig) {
-        onUpdateTitleConfig(prev => ({ ...prev, pos: { x: newX, y: newY } }));
-      } else if (activeDragging.type === 'caption' && onUpdateCaptionPos) {
-        onUpdateCaptionPos({ x: newX, y: newY });
-      } else if (activeDragging.type === 'logo' && onUpdateBrandConfig) {
-        onUpdateBrandConfig(prev => ({ ...prev, pos: { x: newX, y: newY } }));
-      } else if (activeDragging.type === 'textLayer' && onUpdateTextLayerPos) {
-        onUpdateTextLayerPos(activeDragging.id, { x: newX, y: newY });
+        if (activeDragging.type === 'title' && onUpdateTitleConfig) {
+          onUpdateTitleConfig(prev => ({ ...prev, pos: { x: newX, y: newY } }));
+        } else if (activeDragging.type === 'caption') {
+          if (onUpdateCaptionConfig) onUpdateCaptionConfig(prev => ({ ...prev, pos: { x: newX, y: newY } }));
+          if (onUpdateCaptionPos) onUpdateCaptionPos({ x: newX, y: newY });
+        } else if (activeDragging.type === 'logo' && onUpdateBrandConfig) {
+          onUpdateBrandConfig(prev => ({ ...prev, pos: { x: newX, y: newY } }));
+        } else if (activeDragging.type === 'textLayer' && onUpdateTextLayerPos) {
+          onUpdateTextLayerPos(activeDragging.id, { x: newX, y: newY });
+        }
+      }
+
+      // RESIZING
+      if (activeResizing && canvasContainerRef.current) {
+        const delta = (e.clientX - activeResizing.startMouseX) + (e.clientY - activeResizing.startMouseY);
+
+        if (activeResizing.type === 'title' && onUpdateTitleConfig) {
+          const newScale = Math.max(50, Math.min(250, Math.round(activeResizing.startScale + delta * 0.6)));
+          onUpdateTitleConfig(prev => ({ ...prev, scale: newScale }));
+        } else if (activeResizing.type === 'caption') {
+          const newScale = Math.max(50, Math.min(250, Math.round(activeResizing.startScale + delta * 0.6)));
+          if (onUpdateCaptionConfig) onUpdateCaptionConfig(prev => ({ ...prev, scale: newScale }));
+          if (setFontStyle) {
+            const newFontSize = Math.max(18, Math.min(80, Math.round(activeResizing.startFontSize + delta * 0.2)));
+            setFontStyle(prev => ({ ...prev, fontSize: newFontSize }));
+          }
+        } else if (activeResizing.type === 'logo' && onUpdateBrandConfig) {
+          const newSize = Math.max(25, Math.min(200, Math.round(activeResizing.startSize + delta * 0.5)));
+          onUpdateBrandConfig(prev => ({ ...prev, logoSize: newSize }));
+        } else if (activeResizing.type === 'textLayer' && onUpdateTextLayer) {
+          const newScale = Math.max(50, Math.min(250, Math.round(activeResizing.startScale + delta * 0.6)));
+          onUpdateTextLayer(activeResizing.id, { scale: newScale });
+        }
       }
     };
 
     const handleMouseUp = () => {
       if (activeDragging) setActiveDragging(null);
+      if (activeResizing) setActiveResizing(null);
     };
 
-    if (activeDragging) {
+    if (activeDragging || activeResizing) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
     }
@@ -96,7 +174,7 @@ export default function OpusCanvasPreview({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [activeDragging, onUpdateTitleConfig, onUpdateCaptionPos, onUpdateBrandConfig, onUpdateTextLayerPos]);
+  }, [activeDragging, activeResizing, onUpdateTitleConfig, onUpdateCaptionConfig, onUpdateCaptionPos, onUpdateBrandConfig, onUpdateTextLayer, onUpdateTextLayerPos, setFontStyle]);
 
   const activePhrase = words.filter(w => Math.abs(w.start - currentTime) <= 1.4);
 
@@ -152,180 +230,135 @@ export default function OpusCanvasPreview({
     setEditingTitle(false);
   };
 
+  const handleSavePhraseEdit = (newText) => {
+    if (editingPhraseModal && onEditPhraseText && newText.trim()) {
+      const matchIndices = editingPhraseModal.words.map(w => words.findIndex(item => item === w)).filter(idx => idx !== -1);
+      if (matchIndices.length > 0) {
+        onEditPhraseText(matchIndices, newText.trim());
+      }
+    }
+    setEditingPhraseModal(null);
+  };
+
   // Emojis dictionary for AI Emoji feature
   const getWordEmoji = (word) => {
-    const clean = word.toLowerCase().replace(/[.,!?\"']/g, '').trim();
-    if (['luật', 'quy', 'nghị', 'định'].includes(clean)) return '⚖️';
-    if (['tiền', 'giá', 'đô', 'doanh'].includes(clean)) return '💰';
-    if (['hàng', 'sản', 'phẩm'].includes(clean)) return '📦';
-    if (['rủi', 'ro', 'chết', 'nguy'].includes(clean)) return '⚠️';
-    if (['chuẩn', 'đúng', 'xác'].includes(clean)) return '🎯';
-    if (['thương', 'thị', 'trường'].includes(clean)) return '📈';
-    if (['nhanh', 'tốc', 'siêu'].includes(clean)) return '⚡';
-    if (['tuyệt', 'hay', 'tốt'].includes(clean)) return '🔥';
-    return null;
+    const clean = word.toLowerCase().replace(/[.,!?\"']/g, '');
+    const emojiMap = {
+      'tiền': '💵', 'triệu': '💰', 'tỷ': '💎', 'doanh': '📈', 'thu': '📊',
+      'xe': '🚗', 'nhà': '🏡', 'ăn': '🍕', 'uống': '🥤', 'ngủ': '😴',
+      'yêu': '❤️', 'thích': '🔥', 'hot': '⚡', 'viral': '🚀', 'cảnh': '⚠️',
+      'bí': '🤫', 'quyết': '🔑', 'mẹo': '💡', 'nguy': '🚨', 'thành': '🏆'
+    };
+    return emojiMap[clean] || null;
   };
 
-  // Active B-Roll in current time range
-  const clipStart = clip?.start_time || 0;
-  const relTime = currentTime - clipStart;
-  const activeBroll = brolls.find(b => relTime >= b.start && relTime <= b.end);
+  const activeBroll = brolls.find(b => currentTime >= b.start && currentTime <= b.end);
 
-  // Initialize MediaPipe Selfie Segmentation
+  // Sync B-Roll video with main player
   useEffect(() => {
-    if (window.SelfieSegmentation && !selfieSegRef.current) {
-      try {
-        const selfieSeg = new window.SelfieSegmentation({
-          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
-        });
-        selfieSeg.setOptions({
-          modelSelection: 1, // General landscape / portrait model
-          selfieMode: false
-        });
-        selfieSeg.onResults(handleSegmentationResults);
-        selfieSegRef.current = selfieSeg;
-      } catch (e) {
-        console.warn('SelfieSegmentation init error:', e);
+    if (activeBroll && brollVideoRef.current) {
+      const offset = currentTime - activeBroll.start;
+      if (Math.abs(brollVideoRef.current.currentTime - offset) > 0.3) {
+        brollVideoRef.current.currentTime = offset;
+      }
+      if (isPlaying && brollVideoRef.current.paused) {
+        brollVideoRef.current.play().catch(() => {});
+      } else if (!isPlaying && !brollVideoRef.current.paused) {
+        brollVideoRef.current.pause();
       }
     }
-  }, []);
+  }, [currentTime, isPlaying, activeBroll]);
 
-  const handleSegmentationResults = (results) => {
-    const canvas = segmentationCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  // Render floating action toolbar for selected canvas element
+  const renderElementToolbar = (type, id, onZoomIn, onZoomOut, onEdit, onDelete, label = '') => {
+    return (
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="absolute -top-9 left-1/2 -translate-x-1/2 z-40 bg-[#121422]/95 border border-[#333852] rounded-xl shadow-2xl p-1 flex items-center gap-1 backdrop-blur-md animate-fade-in text-[10px]"
+      >
+        <span className="text-[9px] font-bold text-slate-300 px-1.5 font-mono uppercase truncate max-w-[80px]">
+          {label}
+        </span>
+        <div className="w-[1px] h-3 bg-white/20" />
+        
+        {/* Zoom Out */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onZoomOut && onZoomOut();
+          }}
+          title="Thu nhỏ kích thước"
+          className="w-5 h-5 rounded-lg bg-[#202438] hover:bg-[#2c324e] text-slate-200 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+        >
+          <Minus className="w-3 h-3" />
+        </button>
 
-    ctx.save();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+        {/* Zoom In */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onZoomIn && onZoomIn();
+          }}
+          title="Phóng to kích thước"
+          className="w-5 h-5 rounded-lg bg-[#202438] hover:bg-[#2c324e] text-slate-200 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+        >
+          <Plus className="w-3 h-3" />
+        </button>
 
-    // 1. Draw B-Roll Background Layer
-    if (brollVideoRef.current && (activeBroll?.mediaType === 'video' || activeBroll?.fileUrl?.endsWith('.mp4'))) {
-      ctx.drawImage(brollVideoRef.current, 0, 0, canvas.width, canvas.height);
-    } else if (brollImageRef.current && brollImageRef.current.complete) {
-      ctx.drawImage(brollImageRef.current, 0, 0, canvas.width, canvas.height);
-    } else {
-      const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-      grad.addColorStop(0, '#1e1b4b');
-      grad.addColorStop(1, '#0f172a');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
+        {/* Edit */}
+        {onEdit && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            title="Chỉnh sửa nội dung / kiểu dáng"
+            className="px-1.5 h-5 rounded-lg bg-indigo-600/80 hover:bg-indigo-600 text-white font-bold flex items-center gap-0.5 transition-all hover:scale-105"
+          >
+            <Edit3 className="w-2.5 h-2.5" />
+            <span>Sửa</span>
+          </button>
+        )}
 
-    // 2. Create masked Person cutout on a temporary canvas
-    if (!tempCanvasRef.current) {
-      tempCanvasRef.current = document.createElement('canvas');
-    }
-    const tempCanvas = tempCanvasRef.current;
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
-    const tempCtx = tempCanvas.getContext('2d');
-
-    tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-    tempCtx.drawImage(results.segmentationMask, 0, 0, tempCanvas.width, tempCanvas.height);
-    tempCtx.globalCompositeOperation = 'source-in';
-    tempCtx.drawImage(results.image, 0, 0, tempCanvas.width, tempCanvas.height);
-
-    // 3. Draw segmented Person on top of B-Roll background
-    ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
-    ctx.restore();
-
-    setIsAiSegmenting(true);
+        {/* Delete */}
+        {onDelete && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            title="Xóa / Ẩn phần tử này"
+            className="w-5 h-5 rounded-lg bg-rose-600/80 hover:bg-rose-600 text-white flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+    );
   };
-
-  // Real-time animation loop when background cutout mode is active
-  useEffect(() => {
-    let active = true;
-
-    const processFrame = async () => {
-      if (
-        active &&
-        activeBroll?.style === 'background' &&
-        videoRef.current &&
-        videoRef.current.readyState >= 2 &&
-        selfieSegRef.current
-      ) {
-        try {
-          await selfieSegRef.current.send({ image: videoRef.current });
-        } catch (err) {}
-      }
-
-      if (active) {
-        animFrameIdRef.current = requestAnimationFrame(processFrame);
-      }
-    };
-
-    if (activeBroll?.style === 'background') {
-      animFrameIdRef.current = requestAnimationFrame(processFrame);
-    } else {
-      setIsAiSegmenting(false);
-    }
-
-    return () => {
-      active = false;
-      if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
-    };
-  }, [activeBroll, isPlaying]);
-
-  // Synchronize B-Roll video playback with Master Play/Pause state and seek time
-  useEffect(() => {
-    if (brollVideoRef.current && activeBroll) {
-      const isVideo = activeBroll.mediaType === 'video' || activeBroll.fileUrl?.endsWith('.mp4') || activeBroll.fileUrl?.endsWith('.webm') || activeBroll.fileUrl?.endsWith('.mov');
-      if (isVideo) {
-        if (isPlaying) {
-          brollVideoRef.current.play().catch(() => {});
-        } else {
-          brollVideoRef.current.pause();
-        }
-      }
-    }
-  }, [isPlaying, activeBroll]);
-
-  // Synchronize B-Roll video current time with timeline position and trim range
-  useEffect(() => {
-    if (brollVideoRef.current && activeBroll) {
-      const isVideo = activeBroll.mediaType === 'video' || activeBroll.fileUrl?.endsWith('.mp4') || activeBroll.fileUrl?.endsWith('.webm') || activeBroll.fileUrl?.endsWith('.mov');
-      if (isVideo) {
-        const trimStart = activeBroll.videoTrimStart || 0;
-        const trimEnd = (activeBroll.videoTrimEnd && activeBroll.videoTrimEnd > trimStart)
-          ? activeBroll.videoTrimEnd
-          : (brollVideoRef.current.duration || trimStart + (activeBroll.duration || 5));
-        const trimDuration = Math.max(0.5, trimEnd - trimStart);
-
-        const brollElapsed = Math.max(0, relTime - activeBroll.start);
-        const targetTime = trimStart + (brollElapsed % trimDuration);
-
-        if (Math.abs(brollVideoRef.current.currentTime - targetTime) > 0.3) {
-          brollVideoRef.current.currentTime = targetTime;
-        }
-      }
-    }
-  }, [currentTime, activeBroll, relTime]);
 
   const renderBrollVisual = (broll, extraClass = '') => {
-    if (broll.fileUrl) {
-      const isVideo = broll.mediaType === 'video' || broll.fileUrl.endsWith('.mp4') || broll.fileUrl.endsWith('.webm') || broll.fileUrl.endsWith('.mov');
-      if (isVideo) {
-        return (
-          <video
-            ref={brollVideoRef}
-            src={broll.fileUrl}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className={`w-full h-full object-cover ${extraClass}`}
-          />
-        );
-      }
+    if (broll.videoUrl) {
       return (
-        <div className="w-full h-full overflow-hidden">
+        <video
+          ref={brollVideoRef}
+          src={broll.videoUrl}
+          className={`w-full h-full object-cover ${extraClass}`}
+          muted
+          playsInline
+          loop
+        />
+      );
+    }
+
+    if (broll.imageUrl) {
+      return (
+        <div className={`w-full h-full relative overflow-hidden ${extraClass}`}>
           <img
             ref={brollImageRef}
-            src={broll.fileUrl}
+            src={broll.imageUrl}
             alt={broll.title}
-            crossOrigin="anonymous"
-            className={`w-full h-full object-cover animate-ken-burns ${extraClass}`}
+            className="w-full h-full object-cover animate-ken-burns filter brightness-95"
           />
         </div>
       );
@@ -343,7 +376,10 @@ export default function OpusCanvasPreview({
   };
 
   return (
-    <div className="h-full bg-[#090a0f] flex items-center justify-center p-4 relative overflow-hidden select-none">
+    <div 
+      onClick={() => setSelectedElement(null)}
+      className="h-full bg-[#090a0f] flex items-center justify-center p-4 relative overflow-hidden select-none"
+    >
       {/* 9:16 Frame Container */}
       <div 
         ref={canvasContainerRef}
@@ -424,6 +460,10 @@ export default function OpusCanvasPreview({
         {/* ── 2. B-ROLL VISUAL OVERLAYS (RENDERED BEHIND OR IN FRONT BASED ON STYLE) ── */}
         {activeBroll && (
           <div 
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedElement({ type: 'broll', id: activeBroll.id });
+            }}
             className={`absolute overflow-hidden transition-all duration-300 ${
               activeBroll.style === 'full_cover' ? 'inset-0 z-15' :
               activeBroll.style === 'split_50_50_top' ? 'inset-x-0 top-0 h-1/2 z-15' :
@@ -433,24 +473,35 @@ export default function OpusCanvasPreview({
               activeBroll.style === 'background' ? 'inset-0 z-5 scale-105 filter brightness-90' :
               activeBroll.style === 'pip' ? 'top-16 right-3 w-28 h-20 rounded-xl border-2 border-amber-500 shadow-2xl z-20' :
               'inset-0 z-15'
-            }`}
+            } ${selectedElement?.type === 'broll' ? 'ring-2 ring-amber-400' : ''}`}
           >
             {renderBrollVisual(activeBroll)}
             
+            {/* B-Roll Header Tag */}
             <div className="absolute top-2 left-2 bg-black/75 border border-amber-500/50 px-1.5 py-0.5 rounded text-[8px] text-amber-300 font-mono font-bold z-20 flex items-center gap-1">
               {activeBroll.style === 'background' && <UserCheck className="w-2.5 h-2.5 text-emerald-400" />}
               <span>{activeBroll.style === 'background' ? 'Tách Người AI & Làm Nền: ' : 'B-Roll: '}</span>
               <span>{activeBroll.title}</span>
             </div>
+
+            {/* Quick Delete B-Roll Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemoveBroll && onRemoveBroll(activeBroll.id);
+              }}
+              title="Xóa B-Roll này khỏi video"
+              className="absolute top-2 right-2 w-5 h-5 rounded-full bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center z-25 shadow-lg active:scale-95"
+            >
+              <X className="w-3 h-3" />
+            </button>
           </div>
         )}
 
-        {/* ── 3. CINEMATIC GRADIENT FEATHERING BLEND SEAM (ĐOẠN TIẾP GIÁP CHUYỂN SẮC MỀM) ── */}
+        {/* ── SOFT AMBIENT GRADIENT FEATHERING BLEND SEAMS (CHO PHONG CÁCH 50:50 & 30:70) ── */}
         {activeBroll && (activeBroll.style === 'split_50_50_top' || activeBroll.style === 'split_50_50_bottom') && (
           <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-16 pointer-events-none z-25 overflow-hidden flex items-center justify-center">
-            {/* Ambient Dark Gradient Feathering */}
             <div className="w-full h-full bg-gradient-to-b from-transparent via-black/85 to-transparent backdrop-blur-[1.5px]" />
-            {/* Subtle soft glowing division accent line */}
             <div className="absolute inset-x-6 top-1/2 -translate-y-1/2 h-[1.5px] bg-gradient-to-r from-transparent via-amber-400/40 to-transparent shadow-[0_0_15px_rgba(251,191,36,0.6)]" />
           </div>
         )}
@@ -503,7 +554,9 @@ export default function OpusCanvasPreview({
           </div>
         )}
 
-        {/* ── 1. BRAND LOGO / WATERMARK OVERLAY (KÉO THẢ TỰ DO) ── */}
+        {/* ═════════════════════════════════════════════════════════════════════════════════
+            1. BRAND LOGO / WATERMARK OVERLAY (DI CHUYỂN, ZOOM TO NHỎ, SỬA & XÓA)
+           ═════════════════════════════════════════════════════════════════════════════════ */}
         {brandConfig?.showLogo && (
           <div 
             style={{ 
@@ -515,12 +568,25 @@ export default function OpusCanvasPreview({
             onMouseDown={(e) => startDragging(e, 'logo', null, brandConfig.pos || { x: 82, y: 6 })}
             onClick={(e) => {
               e.stopPropagation();
-              onSelectElementToCustomize('brand');
+              setSelectedElement({ type: 'logo', id: null });
             }}
-            className="absolute z-25 cursor-move group select-none transition-shadow"
-            title="Kéo thả để di chuyển vị trí Logo"
+            className={`absolute z-35 cursor-move group select-none transition-shadow ${
+              selectedElement?.type === 'logo' ? 'ring-2 ring-indigo-400 ring-offset-2 ring-offset-black rounded-xl' : ''
+            }`}
+            title="Kéo di chuyển, kéo góc dưới phải để zoom to nhỏ"
           >
-            <div className="relative p-1 rounded-xl group-hover:ring-2 group-hover:ring-indigo-400 group-hover:bg-black/40 transition-all flex items-center gap-1.5">
+            {/* Quick Action Toolbar */}
+            {selectedElement?.type === 'logo' && renderElementToolbar(
+              'logo',
+              null,
+              () => onUpdateBrandConfig && onUpdateBrandConfig(prev => ({ ...prev, logoSize: Math.min(200, (prev.logoSize || 65) + 8) })),
+              () => onUpdateBrandConfig && onUpdateBrandConfig(prev => ({ ...prev, logoSize: Math.max(25, (prev.logoSize || 65) - 8) })),
+              () => onSelectElementToCustomize && onSelectElementToCustomize('brand'),
+              () => onUpdateBrandConfig && onUpdateBrandConfig(prev => ({ ...prev, showLogo: false })),
+              'Logo'
+            )}
+
+            <div className="relative p-1 rounded-xl group-hover:ring-1 group-hover:ring-indigo-400/60 group-hover:bg-black/40 transition-all flex items-center gap-1.5">
               {brandConfig?.logoUrl ? (
                 <img 
                   src={brandConfig.logoUrl} 
@@ -529,39 +595,65 @@ export default function OpusCanvasPreview({
                   className="object-contain drop-shadow-md pointer-events-none"
                 />
               ) : (
-                <div className="px-2.5 py-1 rounded-md bg-black/70 border border-white/25 text-white font-black text-[10px] tracking-wider uppercase backdrop-blur-xs shadow-md">
+                <div 
+                  style={{ fontSize: `${Math.round((brandConfig.logoSize || 65) * 0.16)}px` }}
+                  className="px-2.5 py-1 rounded-md bg-black/75 border border-white/25 text-white font-black tracking-wider uppercase backdrop-blur-xs shadow-md"
+                >
                   {brandConfig?.logoText || 'OPUS STUDIO'}
                 </div>
               )}
-              <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-sm pointer-events-none">
-                <Move className="w-2.5 h-2.5" />
+
+              {/* Corner Resize Handle */}
+              <div
+                onMouseDown={(e) => startResizing(e, 'logo', null, 100, brandConfig.logoSize || 65)}
+                className="absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full bg-indigo-500 text-white flex items-center justify-center cursor-nwse-resize shadow-md hover:scale-125 transition-transform"
+                title="Kéo góc để phóng to / thu nhỏ Logo"
+              >
+                <Maximize2 className="w-2.5 h-2.5" />
               </div>
             </div>
           </div>
         )}
 
-        {/* ── 2. CUSTOM TEXT STICKERS (KÉO THẢ TỰ DO & ĐA PHONG CÁCH) ── */}
+        {/* ═════════════════════════════════════════════════════════════════════════════════
+            2. CUSTOM TEXT STICKERS (DI CHUYỂN, ZOOM TO NHỎ, SỬA & XÓA)
+           ═════════════════════════════════════════════════════════════════════════════════ */}
         {textLayers.map((tl, i) => {
-          const textObj = typeof tl === 'string' ? { id: `tl_${i}`, text: tl, style: 'header', pos: { x: 50, y: 60 + i * 8 } } : tl;
+          const textObj = typeof tl === 'string' ? { id: `tl_${i}`, text: tl, style: 'header', scale: 100, pos: { x: 50, y: 60 + i * 8 } } : tl;
           const currentPos = textObj.pos || { x: 50, y: 60 + i * 8 };
-          
+          const currentScale = textObj.scale || 100;
+          const isSelected = selectedElement?.type === 'textLayer' && selectedElement?.id === textObj.id;
+
           return (
             <div 
               key={textObj.id || i}
               style={{
                 top: `${currentPos.y}%`,
                 left: `${currentPos.x}%`,
-                transform: 'translate(-50%, -50%)'
+                transform: `translate(-50%, -50%) scale(${currentScale / 100})`
               }}
               onMouseDown={(e) => startDragging(e, 'textLayer', textObj.id, currentPos)}
               onClick={(e) => {
                 e.stopPropagation();
-                onSelectElementToCustomize('text');
+                setSelectedElement({ type: 'textLayer', id: textObj.id });
               }}
-              className="absolute z-25 cursor-move group select-none text-center"
-              title="Kéo thả để di chuyển chữ"
+              className={`absolute z-35 cursor-move group select-none text-center ${
+                isSelected ? 'ring-2 ring-indigo-400 ring-offset-2 ring-offset-black rounded-xl' : ''
+              }`}
+              title="Kéo di chuyển, kéo góc dưới phải để zoom to nhỏ"
             >
-              <div className="relative inline-block group-hover:scale-105 transition-transform">
+              {/* Quick Action Toolbar */}
+              {isSelected && renderElementToolbar(
+                'textLayer',
+                textObj.id,
+                () => onUpdateTextLayer && onUpdateTextLayer(textObj.id, { scale: Math.min(250, currentScale + 15) }),
+                () => onUpdateTextLayer && onUpdateTextLayer(textObj.id, { scale: Math.max(50, currentScale - 15) }),
+                () => setEditingTextLayerModal(textObj),
+                () => onRemoveTextLayer && onRemoveTextLayer(textObj.id || i),
+                'Text'
+              )}
+
+              <div className="relative inline-block">
                 {textObj.style === 'neon_tag' ? (
                   <div className="bg-black/90 text-emerald-300 font-bold text-xs px-3.5 py-1 rounded-full shadow-[0_0_12px_rgba(52,211,153,0.8)] border border-emerald-400 uppercase tracking-wider">
                     {textObj.text}
@@ -584,109 +676,156 @@ export default function OpusCanvasPreview({
                   </div>
                 )}
 
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemoveTextLayer && onRemoveTextLayer(textObj.id || i);
-                  }}
-                  className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                {/* Corner Resize Handle */}
+                <div
+                  onMouseDown={(e) => startResizing(e, 'textLayer', textObj.id, currentScale, 65)}
+                  className="absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full bg-indigo-500 text-white flex items-center justify-center cursor-nwse-resize shadow-md hover:scale-125 transition-transform"
+                  title="Kéo góc để phóng to / thu nhỏ chữ"
                 >
-                  x
-                </button>
-                <div className="absolute -top-2 -left-2 w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-md pointer-events-none">
-                  <Move className="w-2.5 h-2.5" />
+                  <Maximize2 className="w-2.5 h-2.5" />
                 </div>
               </div>
             </div>
           );
         })}
 
-        {/* ── 3. TOP HOOK HEADLINE OVERLAY (KÉO THẢ & 5 PHONG CÁCH) ── */}
-        <div 
-          style={{
-            top: `${titleConfig?.pos?.y ?? 10}%`,
-            left: `${titleConfig?.pos?.x ?? 50}%`,
-            transform: 'translate(-50%, -50%)'
-          }}
-          onMouseDown={(e) => !editingTitle && startDragging(e, 'title', null, titleConfig?.pos || { x: 50, y: 10 })}
-          className="absolute z-25 cursor-move group select-none text-center max-w-[92%]"
-          title="Kéo thả để di chuyển Tiêu Đề Hook"
-        >
-          {editingTitle ? (
-            <div className="bg-[#181a26] border border-[#3b4160] p-2 rounded-xl shadow-2xl space-y-2 cursor-default">
-              <input
-                type="text"
-                value={titleInput}
-                onChange={(e) => setTitleInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle()}
-                autoFocus
-                className="w-full bg-[#0d0e15] border border-[#2c3147] rounded-lg px-2 py-1 text-xs text-white font-bold text-center focus:outline-none"
-              />
-              <div className="flex justify-center gap-1 text-[10px]">
-                <button onClick={() => setEditingTitle(false)} className="px-2 py-0.5 rounded bg-[#25293d] text-slate-300">Hủy</button>
-                <button onClick={handleSaveTitle} className="px-2 py-0.5 rounded bg-brand-600 text-white font-bold">Lưu</button>
-              </div>
-            </div>
-          ) : (
-            <div 
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelectElementToCustomize('brand');
+        {/* ═════════════════════════════════════════════════════════════════════════════════
+            3. TOP HOOK HEADLINE OVERLAY (DI CHUYỂN, ZOOM TO NHỎ, SỬA & XÓA)
+           ═════════════════════════════════════════════════════════════════════════════════ */}
+        {titleConfig?.visible !== false && (
+          <div 
+            style={{
+              top: `${titleConfig?.pos?.y ?? 10}%`,
+              left: `${titleConfig?.pos?.x ?? 50}%`,
+              transform: `translate(-50%, -50%) scale(${(titleConfig?.scale ?? 100) / 100})`
+            }}
+            onMouseDown={(e) => !editingTitle && startDragging(e, 'title', null, titleConfig?.pos || { x: 50, y: 10 })}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedElement({ type: 'title', id: null });
+            }}
+            className={`absolute z-35 cursor-move group select-none text-center max-w-[92%] ${
+              selectedElement?.type === 'title' ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-black rounded-xl' : ''
+            }`}
+            title="Kéo di chuyển, kéo góc dưới phải để zoom to nhỏ"
+          >
+            {/* Quick Action Toolbar */}
+            {selectedElement?.type === 'title' && !editingTitle && renderElementToolbar(
+              'title',
+              null,
+              () => onUpdateTitleConfig && onUpdateTitleConfig(prev => ({ ...prev, scale: Math.min(250, (prev.scale || 100) + 15) })),
+              () => onUpdateTitleConfig && onUpdateTitleConfig(prev => ({ ...prev, scale: Math.max(50, (prev.scale || 100) - 15) })),
+              () => {
                 setEditingTitle(true);
                 setTitleInput(customTitle || clip?.title || '');
-              }}
-              className="relative inline-block group-hover:scale-105 transition-transform"
-            >
-              {titleConfig?.style === 'neon_cyber' ? (
-                <div className="bg-black/90 text-emerald-300 font-black text-xs sm:text-sm px-3.5 py-1.5 rounded-xl border-2 border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.6)] uppercase tracking-tight">
-                  <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
-                  <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-emerald-300 transition-opacity" />
-                </div>
-              ) : titleConfig?.style === 'gradient_gold' ? (
-                <div className="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-black font-black text-xs sm:text-sm px-3.5 py-1.5 rounded-xl shadow-2xl border border-yellow-200 uppercase tracking-tight">
-                  <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
-                  <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-black transition-opacity" />
-                </div>
-              ) : titleConfig?.style === 'yellow_impact' ? (
-                <div className="text-yellow-300 font-black text-sm sm:text-base px-3 py-1 drop-shadow-[0_4px_8px_rgba(0,0,0,1)] uppercase tracking-tight">
-                  <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
-                  <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-yellow-300 transition-opacity" />
-                </div>
-              ) : titleConfig?.style === 'minimal' ? (
-                <div className="bg-black/60 backdrop-blur-md text-white font-bold text-xs sm:text-sm px-3.5 py-1.5 rounded-xl border border-white/20 shadow-lg uppercase tracking-tight">
-                  <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
-                  <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-white transition-opacity" />
-                </div>
-              ) : (
-                <div className="bg-white/95 hover:bg-white text-black font-black text-xs sm:text-sm px-3 py-1.5 rounded-lg shadow-lg inline-block leading-snug tracking-tight uppercase border border-white">
-                  <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
-                  <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-slate-700 transition-opacity" />
-                </div>
-              )}
+              },
+              () => onUpdateTitleConfig && onUpdateTitleConfig(prev => ({ ...prev, visible: false })),
+              'Tiêu Đề'
+            )}
 
-              <div className="absolute -top-2 -left-2 w-4 h-4 rounded-full bg-amber-500 text-black flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-md pointer-events-none">
-                <Move className="w-2.5 h-2.5" />
+            {editingTitle ? (
+              <div 
+                onClick={(e) => e.stopPropagation()}
+                className="bg-[#181a26] border border-[#3b4160] p-2 rounded-xl shadow-2xl space-y-2 cursor-default"
+              >
+                <input
+                  type="text"
+                  value={titleInput}
+                  onChange={(e) => setTitleInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle()}
+                  autoFocus
+                  className="w-full bg-[#0d0e15] border border-[#2c3147] rounded-lg px-2 py-1 text-xs text-white font-bold text-center focus:outline-none"
+                />
+                <div className="flex justify-center gap-1 text-[10px]">
+                  <button onClick={() => setEditingTitle(false)} className="px-2 py-0.5 rounded bg-[#25293d] text-slate-300">Hủy</button>
+                  <button onClick={handleSaveTitle} className="px-2 py-0.5 rounded bg-brand-600 text-white font-bold">Lưu</button>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            ) : (
+              <div className="relative inline-block group-hover:scale-105 transition-transform">
+                {titleConfig?.style === 'neon_cyber' ? (
+                  <div className="bg-black/90 text-emerald-300 font-black text-xs sm:text-sm px-3.5 py-1.5 rounded-xl border-2 border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.6)] uppercase tracking-tight">
+                    <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
+                    <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-emerald-300 transition-opacity" />
+                  </div>
+                ) : titleConfig?.style === 'gradient_gold' ? (
+                  <div className="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-black font-black text-xs sm:text-sm px-3.5 py-1.5 rounded-xl shadow-2xl border border-yellow-200 uppercase tracking-tight">
+                    <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
+                    <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-black transition-opacity" />
+                  </div>
+                ) : titleConfig?.style === 'yellow_impact' ? (
+                  <div className="text-yellow-300 font-black text-sm sm:text-base px-3 py-1 drop-shadow-[0_4px_8px_rgba(0,0,0,1)] uppercase tracking-tight">
+                    <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
+                    <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-yellow-300 transition-opacity" />
+                  </div>
+                ) : titleConfig?.style === 'minimal' ? (
+                  <div className="bg-black/60 backdrop-blur-md text-white font-bold text-xs sm:text-sm px-3.5 py-1.5 rounded-xl border border-white/20 shadow-lg uppercase tracking-tight">
+                    <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
+                    <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-white transition-opacity" />
+                  </div>
+                ) : (
+                  <div className="bg-white/95 hover:bg-white text-black font-black text-xs sm:text-sm px-3 py-1.5 rounded-lg shadow-lg inline-block leading-snug tracking-tight uppercase border border-white">
+                    <span>{customTitle || clip?.title || "Tiêu Đề Viral Clip"}</span>
+                    <Edit3 className="w-3 h-3 ml-1.5 inline-block opacity-0 group-hover:opacity-100 text-slate-700 transition-opacity" />
+                  </div>
+                )}
 
-        {/* ── 4. SUBTITLE / CAPTION OVERLAY (KÉO THẢ VỊ TRÍ) ── */}
-        <div 
-          style={{
-            top: `${captionPos?.y ?? 84}%`,
-            left: `${captionPos?.x ?? 50}%`,
-            transform: 'translate(-50%, -50%)'
-          }}
-          onMouseDown={(e) => startDragging(e, 'caption', null, captionPos || { x: 50, y: 84 })}
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelectElementToCustomize('captions');
-          }}
-          title="Kéo thả để di chuyển vị trí Phụ đề"
-          className="absolute z-25 cursor-move group select-none text-center max-w-[95%]"
-        >
-          {captionPreset !== 'No captions' && activePhrase.length > 0 && (
+                {/* Corner Resize Handle */}
+                <div
+                  onMouseDown={(e) => startResizing(e, 'title', null, titleConfig?.scale ?? 100, 65)}
+                  className="absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-500 text-black flex items-center justify-center cursor-nwse-resize shadow-md hover:scale-125 transition-transform"
+                  title="Kéo góc để phóng to / thu nhỏ Tiêu đề"
+                >
+                  <Maximize2 className="w-2.5 h-2.5" />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═════════════════════════════════════════════════════════════════════════════════
+            4. SUBTITLE / DYNAMIC CAPTIONS (DI CHUYỂN, ZOOM TO NHỎ, SỬA LỜI THOẠI & XÓA)
+           ═════════════════════════════════════════════════════════════════════════════════ */}
+        {captionPreset !== 'No captions' && captionConfig?.visible !== false && activePhrase.length > 0 && (
+          <div 
+            style={{
+              top: `${captionConfig?.pos?.y ?? captionPos?.y ?? 84}%`,
+              left: `${captionConfig?.pos?.x ?? captionPos?.x ?? 50}%`,
+              transform: `translate(-50%, -50%) scale(${(captionConfig?.scale ?? 100) / 100})`
+            }}
+            onMouseDown={(e) => startDragging(e, 'caption', null, captionConfig?.pos || captionPos || { x: 50, y: 84 })}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedElement({ type: 'caption', id: null });
+            }}
+            title="Kéo di chuyển, kéo góc dưới phải để zoom to nhỏ phụ đề"
+            className={`absolute z-35 cursor-move group select-none text-center max-w-[95%] ${
+              selectedElement?.type === 'caption' ? 'ring-2 ring-brand-400 ring-offset-2 ring-offset-black rounded-xl' : ''
+            }`}
+          >
+            {/* Quick Action Toolbar */}
+            {selectedElement?.type === 'caption' && renderElementToolbar(
+              'caption',
+              null,
+              () => {
+                if (setFontStyle) setFontStyle(prev => ({ ...prev, fontSize: Math.min(80, (prev.fontSize || 40) + 4) }));
+                if (onUpdateCaptionConfig) onUpdateCaptionConfig(prev => ({ ...prev, scale: Math.min(250, (prev.scale || 100) + 15) }));
+              },
+              () => {
+                if (setFontStyle) setFontStyle(prev => ({ ...prev, fontSize: Math.max(18, (prev.fontSize || 40) - 4) }));
+                if (onUpdateCaptionConfig) onUpdateCaptionConfig(prev => ({ ...prev, scale: Math.max(50, (prev.scale || 100) - 15) }));
+              },
+              () => {
+                const phraseText = activePhrase.map(w => w.word).join(' ');
+                setEditingPhraseModal({ words: activePhrase, text: phraseText });
+              },
+              () => {
+                if (onUpdateCaptionConfig) onUpdateCaptionConfig(prev => ({ ...prev, visible: false }));
+                if (setCaptionPreset) setCaptionPreset('No captions');
+              },
+              'Phụ Đề'
+            )}
+
             <div className="inline-block relative p-1.5 rounded-xl group-hover:ring-1 group-hover:ring-brand-400/60 group-hover:bg-black/30 transition-all">
               <p 
                 style={{
@@ -732,12 +871,18 @@ export default function OpusCanvasPreview({
                   );
                 })}
               </p>
-              <div className="absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full bg-brand-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-md pointer-events-none">
-                <Move className="w-2.5 h-2.5" />
+
+              {/* Corner Resize Handle */}
+              <div
+                onMouseDown={(e) => startResizing(e, 'caption', null, captionConfig?.scale ?? 100, 65)}
+                className="absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full bg-brand-500 text-white flex items-center justify-center cursor-nwse-resize shadow-md hover:scale-125 transition-transform"
+                title="Kéo góc để phóng to / thu nhỏ phụ đề"
+              >
+                <Maximize2 className="w-2.5 h-2.5" />
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Play icon overlay when paused */}
         {!isPlaying && (
@@ -751,6 +896,108 @@ export default function OpusCanvasPreview({
           </div>
         )}
       </div>
+
+      {/* ── MODAL: SỬA LỜI THOẠI TRỰC TIẾP TRÊN CANVAS ── */}
+      {editingPhraseModal && (
+        <div 
+          onClick={(e) => e.stopPropagation()}
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+        >
+          <div className="bg-[#151724] border border-[#2d3248] rounded-2xl p-5 w-full max-w-md shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-brand-400" />
+                <span>Sửa Lời Thoại Phụ Đề Tại Mốc Này</span>
+              </h3>
+              <button 
+                onClick={() => setEditingPhraseModal(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <textarea
+              defaultValue={editingPhraseModal.text}
+              id="phrase-modal-input"
+              rows={3}
+              className="w-full bg-[#0c0d14] border border-[#272b3e] rounded-xl p-3 text-white text-xs font-semibold focus:outline-none focus:border-brand-500"
+              placeholder="Nhập lời thoại chính xác..."
+              autoFocus
+            />
+
+            <div className="flex justify-end gap-2 text-xs">
+              <button
+                onClick={() => setEditingPhraseModal(null)}
+                className="px-3.5 py-1.5 rounded-xl bg-[#222538] hover:bg-[#2c3048] text-slate-300 font-semibold"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => {
+                  const inputVal = document.getElementById('phrase-modal-input')?.value;
+                  if (inputVal) handleSavePhraseEdit(inputVal);
+                }}
+                className="px-4 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold"
+              >
+                Lưu Thay Đổi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: SỬA NỘI DUNG NHÃN CHỮ (TEXT LAYER) ── */}
+      {editingTextLayerModal && (
+        <div 
+          onClick={(e) => e.stopPropagation()}
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+        >
+          <div className="bg-[#151724] border border-[#2d3248] rounded-2xl p-5 w-full max-w-md shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                <Type className="w-4 h-4 text-indigo-400" />
+                <span>Chỉnh Sửa Nhãn Chữ (Text Layer)</span>
+              </h3>
+              <button 
+                onClick={() => setEditingTextLayerModal(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <input
+              defaultValue={editingTextLayerModal.text}
+              id="textlayer-modal-input"
+              className="w-full bg-[#0c0d14] border border-[#272b3e] rounded-xl p-3 text-white text-xs font-semibold focus:outline-none focus:border-indigo-500"
+              placeholder="Nhập nội dung chữ..."
+              autoFocus
+            />
+
+            <div className="flex justify-end gap-2 text-xs">
+              <button
+                onClick={() => setEditingTextLayerModal(null)}
+                className="px-3.5 py-1.5 rounded-xl bg-[#222538] hover:bg-[#2c3048] text-slate-300 font-semibold"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => {
+                  const val = document.getElementById('textlayer-modal-input')?.value;
+                  if (val && onUpdateTextLayer) {
+                    onUpdateTextLayer(editingTextLayerModal.id, { text: val.trim() });
+                  }
+                  setEditingTextLayerModal(null);
+                }}
+                className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold"
+              >
+                Lưu Thay Đổi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
