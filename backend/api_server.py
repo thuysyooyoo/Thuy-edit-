@@ -3,7 +3,7 @@ import json
 import re
 from pathlib import Path
 from typing import List, Optional, Dict, Any
-from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -334,10 +334,94 @@ def export_hd_vertical_video(req: HdExportRequest):
             "success": True,
             "message": "Đã xuất video 9:16 Full HD 1080x1920 hoàn tất!",
             "file_path": out_file,
-            "file_name": safe_name
+            "file_name": safe_name,
+            "download_url": f"/api/download-clip/{safe_name}"
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/convert-webm-to-mp4")
+async def convert_webm_to_mp4(
+    file: UploadFile = File(...),
+    custom_name: Optional[str] = Form(None)
+):
+    """
+    ⚡ PHIÊN 1: Chuyển đổi siêu tốc video WebM (ghi từ browser canvas) sang chuẩn MP4 H.264 / AAC.
+    Chuyển mã bằng libx264 với preset ultrafast để hoàn thành trong tích tắc và tối ưu dung lượng.
+    """
+    temp_dir = BASE_DIR / "temp"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    
+    unique_id = os.urandom(4).hex()
+    temp_webm_path = temp_dir / f"canvas_recording_{unique_id}.webm"
+    
+    # Ghi file WebM tải lên
+    with open(temp_webm_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+        
+    safe_name = custom_name.strip() if custom_name and custom_name.strip() else f"WYSIWYG_HD_{unique_id}.mp4"
+    if not safe_name.lower().endswith(".mp4"):
+        safe_name += ".mp4"
+    safe_name = re.sub(r'[^\w\-_\.]', '_', safe_name)
+    
+    out_mp4_path = OUTPUT_CLIPS_DIR / safe_name
+    
+    from backend.config import FFMPEG_PATH
+    import subprocess
+    
+    # Chuyển đổi WebM sang MP4 (ultrafast H.264 + AAC 192k)
+    cmd = [
+        FFMPEG_PATH, "-y",
+        "-i", str(temp_webm_path),
+        "-c:v", "libx264",
+        "-preset", "ultrafast",
+        "-crf", "18",
+        "-c:a", "aac",
+        "-b:a", "192k",
+        "-pix_fmt", "yuv420p",
+        "-movflags", "+faststart",
+        str(out_mp4_path)
+    ]
+    
+    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if res.returncode != 0:
+        err_msg = res.stderr.decode("utf-8", errors="ignore")
+        print(f"FFmpeg conversion error: {err_msg[-300:]}")
+        raise HTTPException(status_code=500, detail=f"Không thể đóng gói MP4: {err_msg[-150:]}")
+            
+    # Dọn dẹp file tạm
+    if temp_webm_path.exists():
+        try:
+            os.remove(temp_webm_path)
+        except Exception:
+            pass
+            
+    return {
+        "success": True,
+        "message": "Đã đóng gói video MP4 chuẩn Full HD thành công!",
+        "file_name": safe_name,
+        "file_path": str(out_mp4_path),
+        "download_url": f"/api/download-clip/{safe_name}"
+    }
+
+@app.get("/api/download-clip/{file_name}")
+def download_clip_file(file_name: str):
+    """
+    📥 PHIÊN 1: Tải trực tiếp file video từ thư mục output_clips về máy tính của người dùng.
+    """
+    safe_name = os.path.basename(file_name)
+    target_file = OUTPUT_CLIPS_DIR / safe_name
+    
+    if not target_file.exists() or not target_file.is_file():
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy file {safe_name}")
+        
+    return FileResponse(
+        path=str(target_file),
+        filename=safe_name,
+        media_type="video/mp4",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}"'}
+    )
 
 @app.post("/api/cut-custom-clip")
 def cut_custom_clip_by_transcript(req: TranscriptCutRequest):
