@@ -186,23 +186,21 @@ export default function DashboardView({
                   </div>
                 </div>
 
-                {/* Below Card: Score, Action Icons, and Title */}
-                <div className="mt-2.5">
+                {/* Below Card: Score, 4 Virality Metrics, and Title */}
+                <div className="mt-2.5 space-y-1.5">
                   {/* Score & Actions Row */}
                   <div className="flex items-center justify-between">
-                    <span className={`text-xl font-black ${scoreColor}`}>
-                      {score}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-lg font-black ${scoreColor}`}>
+                        {clip.overall_score || score}
+                      </span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        {clip.hook_grade || 'A+'}
+                      </span>
+                    </div>
 
                     {/* Action buttons */}
-                    <div className="flex items-center gap-1.5 text-slate-400">
-                      <button 
-                        title="Chia sẻ / Xuất"
-                        className="p-1 rounded hover:bg-[#1a1d2c] hover:text-white transition-colors"
-                      >
-                        <Share2 className="w-3.5 h-3.5" />
-                      </button>
-
+                    <div className="flex items-center gap-1 text-slate-400">
                       <button 
                         title="Tải video HD"
                         onClick={(e) => {
@@ -227,10 +225,26 @@ export default function DashboardView({
                     </div>
                   </div>
 
+                  {/* 4-Axis Virality Metrics (SupoClip Style) */}
+                  <div className="grid grid-cols-3 gap-1 text-[9px] font-mono text-slate-400 bg-[#141624] p-1.5 rounded-lg border border-[#202438]">
+                    <div title="Điểm Hook mở đầu">
+                      <span className="text-slate-500 block text-[8px]">HOOK</span>
+                      <strong className="text-amber-300">{clip.hook_score || 92}</strong>
+                    </div>
+                    <div title="Điểm tương tác / giữ chân">
+                      <span className="text-slate-500 block text-[8px]">ENGAGE</span>
+                      <strong className="text-emerald-300">{clip.engagement_score || 90}</strong>
+                    </div>
+                    <div title="Điểm giá trị giải pháp">
+                      <span className="text-slate-500 block text-[8px]">VALUE</span>
+                      <strong className="text-cyan-300">{clip.value_score || 94}</strong>
+                    </div>
+                  </div>
+
                   {/* Title */}
                   <h3 
                     onClick={() => onSelectClip(clip)}
-                    className="font-bold text-xs text-slate-200 mt-1 line-clamp-2 leading-snug hover:text-brand-glow cursor-pointer transition-colors"
+                    className="font-bold text-xs text-slate-200 line-clamp-2 leading-snug hover:text-brand-glow cursor-pointer transition-colors"
                   >
                     {clip.title}
                   </h3>

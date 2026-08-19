@@ -176,9 +176,29 @@ def process_video_endpoint(req: ProcessRequest, background_tasks: BackgroundTask
     background_tasks.add_task(_background_run_pipeline, req.input_source, req.gemini_api_key)
     return {"success": True, "message": "Đã bắt đầu tiến trình xử lý video."}
 
+import asyncio
+
 @app.get("/api/job-status")
 def get_job_status():
     return current_job
+
+@app.get("/api/process-stream")
+async def process_stream():
+    """
+    ⚡ PHIÊN 9: Server-Sent Events (SSE) stream realtime tiến trình bóc băng & phân tích Hook-Problem-Solution
+    """
+    async def event_generator():
+        last_progress = -1
+        while True:
+            job_copy = dict(current_job)
+            if job_copy["progress"] != last_progress or job_copy["status"] in ["completed", "error"]:
+                last_progress = job_copy["progress"]
+                yield f"data: {json.dumps(job_copy, ensure_ascii=False)}\n\n"
+            if job_copy["status"] in ["completed", "error"]:
+                break
+            await asyncio.sleep(0.5)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.get("/api/copilot/models")
 def get_available_copilot_models():
