@@ -1,8 +1,8 @@
 /**
  * 🎨 CANVAS COMPOSITOR 1080x1920 FULL HD (WYSIWYG CAPCUT ENGINE)
  * Module chuyên biệt vẽ toàn bộ các lớp trực tiếp từ trình duyệt:
- * - Khung hình video người nói (Center crop 9:16)
- * - B-Roll hình ảnh / video thực tế theo style (Split 30/70, 50/50, PIP, Full Cover)
+ * - Khung hình video người nói (Tự động co về nửa dưới/trên khi có B-Roll để giữ trọn vẹn khuôn mặt)
+ * - B-Roll hình ảnh/video thực tế kèm hiệu ứng chuyển động Ken Burns Slow Zoom (1.0x -> 1.06x)
  * - Thẻ tiêu đề Hook vàng gradient bo góc (Title Card)
  * - Logo thương hiệu góc trên kèm độ mờ đục (Brand Logo)
  * - Phụ đề Karaoke hoạt họa từ hiện tại (Active word highlight green/yellow)
@@ -48,9 +48,17 @@ export function wrapText(ctx, text, maxWidth) {
 }
 
 /**
- * 1. Vẽ khung hình Video người nói (Base Video Frame)
+ * 1. Vẽ khung hình Video người nói (Base Speaker Video Frame)
+ * 🔥 Tự động tính toán khung chứa (Viewport) khi B-Roll Split bật để giữ trọn vẹn khuôn mặt nhân vật!
  */
-export function drawVideoFrame(ctx, videoElement, videoLayout = 'fill', targetWidth = 1080, targetHeight = 1920) {
+export function drawVideoFrame(
+  ctx, 
+  videoElement, 
+  videoLayout = 'fill', 
+  activeBrollConfig = null,
+  targetWidth = 1080, 
+  targetHeight = 1920
+) {
   if (!videoElement || videoElement.readyState < 2) {
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, targetWidth, targetHeight);
@@ -60,8 +68,36 @@ export function drawVideoFrame(ctx, videoElement, videoLayout = 'fill', targetWi
   const vw = videoElement.videoWidth || 1920;
   const vh = videoElement.videoHeight || 1080;
 
-  if (videoLayout === 'fit') {
-    // Fit chế độ giữ nguyên tỷ lệ có viền đen
+  // Xác định vị trí khung hiển thị của Video người nói
+  let boxX = 0;
+  let boxY = 0;
+  let boxW = targetWidth;
+  let boxH = targetHeight;
+
+  const bStyle = activeBrollConfig?.style;
+  if (bStyle === 'split_50_50_top') {
+    // B-Roll ở 50% trên -> Video người nói ở 50% dưới (960px)
+    boxY = Math.round(targetHeight * 0.5);
+    boxH = Math.round(targetHeight * 0.5);
+  } else if (bStyle === 'split_50_50_bottom') {
+    // B-Roll ở 50% dưới -> Video người nói ở 50% trên
+    boxY = 0;
+    boxH = Math.round(targetHeight * 0.5);
+  } else if (bStyle === 'split_30_70_top') {
+    // B-Roll ở 30% trên -> Video người nói ở 70% dưới
+    boxY = Math.round(targetHeight * 0.3);
+    boxH = Math.round(targetHeight * 0.7);
+  } else if (bStyle === 'split_30_70_bottom') {
+    // B-Roll ở 30% dưới -> Video người nói ở 70% trên
+    boxY = 0;
+    boxH = Math.round(targetHeight * 0.7);
+  } else if (bStyle === 'full_cover') {
+    // B-Roll che toàn bộ màn hình -> Không cần vẽ video nền
+    return;
+  }
+
+  if (videoLayout === 'fit' && !activeBrollConfig) {
+    // Fit chế độ giữ nguyên tỷ lệ
     const scale = Math.min(targetWidth / vw, targetHeight / vh);
     const sw = vw * scale;
     const sh = vh * scale;
@@ -71,8 +107,8 @@ export function drawVideoFrame(ctx, videoElement, videoLayout = 'fill', targetWi
     ctx.fillRect(0, 0, targetWidth, targetHeight);
     ctx.drawImage(videoElement, 0, 0, vw, vh, sx, sy, sw, sh);
   } else {
-    // Fill chế độ 9:16 Center Crop chuẩn CSS object-cover
-    const targetAspect = 9 / 16;
+    // Fill chế độ object-cover trong vùng boxW x boxH
+    const targetAspect = boxW / boxH;
     let cropW, cropH, cropX, cropY;
 
     if (vw / vh > targetAspect) {
@@ -87,41 +123,63 @@ export function drawVideoFrame(ctx, videoElement, videoLayout = 'fill', targetWi
       cropY = (vh - cropH) / 2;
     }
 
-    ctx.drawImage(videoElement, cropX, cropY, cropW, cropH, 0, 0, targetWidth, targetHeight);
+    ctx.drawImage(videoElement, cropX, cropY, cropW, cropH, boxX, boxY, boxW, boxH);
   }
 }
 
 /**
- * 2. Vẽ B-Roll thực tế (B-Roll Layer: Split 30/70, Split 50/50, PIP, Full Cover)
+ * 2. Vẽ B-Roll thực tế (B-Roll Layer)
+ * 🔥 Tích hợp hiệu ứng Ken Burns Slow Zoom (1.0x -> 1.06x) tạo chuyển động điện ảnh mượt mà cho ảnh tĩnh!
  */
-export function drawBrollLayer(ctx, brollMediaElement, brollConfig, targetWidth = 1080, targetHeight = 1920) {
+export function drawBrollLayer(
+  ctx, 
+  brollMediaElement, 
+  brollConfig, 
+  currentTime = 0,
+  targetWidth = 1080, 
+  targetHeight = 1920
+) {
   if (!brollMediaElement || !brollConfig) return;
 
   const style = brollConfig.style || 'split_30_70_top';
   const mw = brollMediaElement.videoWidth || brollMediaElement.naturalWidth || brollMediaElement.width || 1920;
   const mh = brollMediaElement.videoHeight || brollMediaElement.naturalHeight || brollMediaElement.height || 1080;
 
-  // Helper crop-cover vẽ media vào hình chữ nhật (x, y, w, h)
+  // Tính toán Ken Burns Zoom cho ảnh tĩnh
+  const isStillImage = !brollMediaElement.videoWidth; // là Image element
+  let zoomFactor = 1.0;
+  if (isStillImage) {
+    const bStart = brollConfig.start || 0;
+    const bDur = Math.max(1, brollConfig.duration || 4);
+    const progress = Math.max(0, Math.min(1, (currentTime - bStart) / bDur));
+    zoomFactor = 1.0 + 0.06 * progress; // zoom nhẹ từ 1.0 đến 1.06
+  }
+
+  // Helper crop-cover vẽ media vào hình chữ nhật (dx, dy, dw, dh) có hỗ trợ Ken Burns
   const drawCover = (dx, dy, dw, dh) => {
     const targetRatio = dw / dh;
-    let sx, sy, sw, sh;
+    let baseW, baseH;
     if (mw / mh > targetRatio) {
-      sh = mh;
-      sw = mh * targetRatio;
-      sx = (mw - sw) / 2;
-      sy = 0;
+      baseH = mh;
+      baseW = mh * targetRatio;
     } else {
-      sw = mw;
-      sh = mw / targetRatio;
-      sx = 0;
-      sy = (mh - sh) / 2;
+      baseW = mw;
+      baseH = mw / targetRatio;
     }
+
+    // Áp dụng zoomFactor
+    const sw = baseW / zoomFactor;
+    const sh = baseH / zoomFactor;
+    const sx = (mw - sw) / 2;
+    const sy = (mh - sh) / 2;
+
     ctx.drawImage(brollMediaElement, sx, sy, sw, sh, dx, dy, dw, dh);
   };
 
   if (style === 'split_30_70_top') {
     const brollH = Math.round(targetHeight * 0.3); // 576px
     drawCover(0, 0, targetWidth, brollH);
+
     // Viền chuyển tiếp mờ nghệ thuật (ambient feather seam)
     const grad = ctx.createLinearGradient(0, brollH - 25, 0, brollH + 25);
     grad.addColorStop(0, 'rgba(0,0,0,0.85)');
@@ -148,6 +206,14 @@ export function drawBrollLayer(ctx, brollMediaElement, brollConfig, targetWidth 
   } else if (style === 'split_50_50_top') {
     const brollH = Math.round(targetHeight * 0.5); // 960px
     drawCover(0, 0, targetWidth, brollH);
+
+    // Viền giữa 50/50
+    const grad = ctx.createLinearGradient(0, brollH - 30, 0, brollH + 30);
+    grad.addColorStop(0, 'rgba(0,0,0,0.85)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, brollH - 30, targetWidth, 60);
+
     ctx.strokeStyle = 'rgba(251, 191, 36, 0.6)';
     ctx.lineWidth = 4;
     ctx.beginPath();
@@ -473,12 +539,12 @@ export function renderCompositedFrame(ctx, options = {}) {
   // 1. Xóa khung hình sạch
   ctx.clearRect(0, 0, targetWidth, targetHeight);
 
-  // 2. Vẽ Video người nói (Base Video)
-  drawVideoFrame(ctx, videoElement, videoLayout, targetWidth, targetHeight);
+  // 2. Vẽ Video người nói (Base Video) - Tự động co về nửa dưới/trên khi có B-Roll
+  drawVideoFrame(ctx, videoElement, videoLayout, activeBrollConfig, targetWidth, targetHeight);
 
-  // 3. Vẽ B-Roll nếu đang trong phân đoạn B-Roll
+  // 3. Vẽ B-Roll nếu đang trong phân đoạn B-Roll (kèm Ken Burns Slow Zoom)
   if (activeBrollMediaElement && activeBrollConfig) {
-    drawBrollLayer(ctx, activeBrollMediaElement, activeBrollConfig, targetWidth, targetHeight);
+    drawBrollLayer(ctx, activeBrollMediaElement, activeBrollConfig, currentTime, targetWidth, targetHeight);
   }
 
   // 4. Vẽ Thẻ Tiêu Đề Vàng (nếu đang trong mốc hiển thị của tiêu đề)
