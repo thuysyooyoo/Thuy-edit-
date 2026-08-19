@@ -858,23 +858,27 @@ export default function OpusRightSidebar({
               <div className="space-y-2.5">
                 <div className="text-xs font-bold text-white mb-1">Hiệu Ứng Hoạt Họa Phụ Đề</div>
                 {[
-                  { id: 'pop', name: 'Pop In Scale Bounce', desc: 'Chữ nảy nhẹ khi phát âm' },
+                  { id: 'pop', name: 'Pop In Scale Bounce (MrBeast)', desc: 'Chữ nảy phóng to 1.15x khi phát âm' },
+                  { id: 'pill', name: 'Alex Hormozi Pill-Box', desc: 'Hộp nền vàng/đỏ bo góc ôm từ đang đọc' },
+                  { id: 'glow', name: 'Cyberpunk Neon Glow', desc: 'Tỏa sáng hào quang neon rực rỡ' },
                   { id: 'wave', name: 'Karaoke Color Wave', desc: 'Sóng màu quét từ trái qua phải' },
-                  { id: 'glow', name: 'Neon Glow Pulse', desc: 'Tỏa sáng hào quang neon rực rỡ' },
                   { id: 'slide', name: 'Smooth Slide Up', desc: 'Trượt mượt mà từng dòng' }
                 ].map((eff) => (
                   <div
                     key={eff.id}
-                    onClick={() => setCaptionEffect && setCaptionEffect(eff.id)}
+                    onClick={() => {
+                      if (setCaptionEffect) setCaptionEffect(eff.id);
+                      if (setFontStyle) setFontStyle(prev => ({ ...prev, effect: eff.id }));
+                    }}
                     className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                      captionEffect === eff.id ? 'bg-indigo-950/50 border-indigo-500 ring-1 ring-indigo-500' : 'bg-[#161826] hover:bg-[#202336] border-[#272b40]'
+                      (fontStyle?.effect || captionEffect) === eff.id ? 'bg-indigo-950/50 border-indigo-500 ring-1 ring-indigo-500' : 'bg-[#161826] hover:bg-[#202336] border-[#272b40]'
                     }`}
                   >
                     <div>
                       <div className="font-bold text-white text-xs">{eff.name}</div>
                       <div className="text-[10px] text-slate-400">{eff.desc}</div>
                     </div>
-                    {captionEffect === eff.id && <Check className="w-4 h-4 text-indigo-400" />}
+                    {(fontStyle?.effect || captionEffect) === eff.id && <Check className="w-4 h-4 text-indigo-400" />}
                   </div>
                 ))}
               </div>
