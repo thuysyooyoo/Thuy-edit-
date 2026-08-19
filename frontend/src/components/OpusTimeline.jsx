@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import BrollEditModal from './BrollEditModal';
 import { 
   Play, 
   Pause, 
@@ -13,7 +14,8 @@ import {
   Plus, 
   X,
   Zap,
-  Sparkles
+  Sparkles,
+  Settings
 } from 'lucide-react';
 
 export default function OpusTimeline({
@@ -38,6 +40,7 @@ export default function OpusTimeline({
   onUpdateSoundFxTime,
   onDeleteSoundFx,
   onDeleteBroll,
+  onUpdateBroll,
   onDeleteScene
 }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -50,6 +53,7 @@ export default function OpusTimeline({
   const [selectedSceneId, setSelectedSceneId] = useState(null);
   const [selectedMarkerId, setSelectedMarkerId] = useState(null);
   const [selectedBrollId, setSelectedBrollId] = useState(null);
+  const [editingBroll, setEditingBroll] = useState(null);
   const [selectedTitle, setSelectedTitle] = useState(false);
   const [draggingId, setDraggingId] = useState(null);
   const [titleDraggingMode, setTitleDraggingMode] = useState(null); // 'move' | 'resize_left' | 'resize_right'
@@ -441,30 +445,51 @@ export default function OpusTimeline({
                       e.stopPropagation();
                       setSelectedBrollId(b.id);
                     }}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      setEditingBroll(b);
+                    }}
+                    title={`B-Roll: ${b.title} (${b.duration?.toFixed(1)}s) - Nhấn đúp để chỉnh sửa phong cách, hiệu ứng vào & thời lượng`}
                     className={`broll-track-block absolute top-1 h-6 rounded-md border flex items-center justify-between px-1.5 text-[9px] font-bold shadow-md cursor-pointer transition-all ${
                       isSelected
-                        ? 'bg-amber-600 text-white border-white ring-2 ring-amber-400 z-30'
+                        ? 'bg-amber-600 text-white border-white ring-2 ring-amber-400 z-30 shadow-lg'
                         : 'bg-amber-600/80 hover:bg-amber-600 text-white border-amber-400'
                     }`}
                   >
                     <div className="flex items-center gap-1 truncate">
                       <span>{b.thumb || '🎬'}</span>
                       <span className="truncate">{b.title}</span>
-                      <span className="text-[8px] opacity-80 font-mono">({b.style || '50:50'})</span>
+                      <span className="text-[8px] opacity-80 font-mono">({b.enterTransition || 'zoom'})</span>
                     </div>
 
-                    {isSelected && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onDeleteBroll) onDeleteBroll(b.id);
-                          setSelectedBrollId(null);
-                        }}
-                        className="ml-1 w-3 h-3 rounded-full bg-white text-amber-800 text-[8px] font-black flex items-center justify-center hover:bg-amber-100 transition-colors shrink-0"
-                      >
-                        x
-                      </button>
-                    )}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {isSelected && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingBroll(b);
+                          }}
+                          title="Sửa phong cách, hiệu ứng vào và thời lượng"
+                          className="w-3.5 h-3.5 rounded bg-black/40 hover:bg-black/80 text-white flex items-center justify-center text-[8px]"
+                        >
+                          <Settings className="w-2.5 h-2.5" />
+                        </button>
+                      )}
+
+                      {isSelected && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onDeleteBroll) onDeleteBroll(b.id);
+                            setSelectedBrollId(null);
+                          }}
+                          title="Xóa B-Roll này"
+                          className="w-3 h-3 rounded-full bg-white text-amber-800 text-[8px] font-black flex items-center justify-center hover:bg-amber-100 transition-colors shrink-0"
+                        >
+                          x
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -629,6 +654,23 @@ export default function OpusTimeline({
             <Plus className="w-4 h-4" />
           </button>
         </div>
+      )}
+      {/* B-Roll Edit Modal */}
+      {editingBroll && (
+        <BrollEditModal
+          isOpen={!!editingBroll}
+          onClose={() => setEditingBroll(null)}
+          broll={editingBroll}
+          onUpdateBroll={(updated) => {
+            if (onUpdateBroll) onUpdateBroll(updated);
+            setEditingBroll(null);
+          }}
+          onDeleteBroll={(id) => {
+            if (onDeleteBroll) onDeleteBroll(id);
+            setEditingBroll(null);
+          }}
+          clipDuration={clipDuration}
+        />
       )}
     </div>
   );

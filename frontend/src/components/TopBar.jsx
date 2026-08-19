@@ -30,6 +30,7 @@ export default function TopBar({
   onExportHd,
   onExportWysiwyg,
   onSaveProject,
+  onOpenProjects,
   isExportingHd = false,
   videoTitle, 
   onBackToDashboard,
@@ -81,6 +82,16 @@ export default function TopBar({
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Danh sách Clips</span>
+          </button>
+        )}
+
+        {onOpenProjects && (
+          <button
+            onClick={onOpenProjects}
+            title="Xem và chuyển đổi giữa các video dự án đã nạp (Không bao giờ mất dữ liệu)"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1c1e2d] hover:bg-[#25283c] text-indigo-300 hover:text-white border border-indigo-500/40 text-xs font-bold transition-all mr-1 shadow-sm active:scale-95"
+          >
+            <span>📂 Kho Dự Án</span>
           </button>
         )}
 

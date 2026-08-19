@@ -41,6 +41,7 @@ export default function OpusTranscript({
   const [editingPhrase, setEditingPhrase] = useState(null);
   const [editInput, setEditInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [replaceInput, setReplaceInput] = useState('');
 
   const clipWords = words.filter(
     w => clip && w.start >= clip.start_time - 0.2 && w.end <= clip.end_time + 0.5
@@ -144,10 +145,39 @@ export default function OpusTranscript({
     setEditingPhrase(null);
   };
 
-  // Search matches count
-  const matchingWordsCount = searchQuery.trim()
-    ? clipWords.filter(w => w.word.toLowerCase().includes(searchQuery.toLowerCase().trim())).length
-    : 0;
+  // Search matching objects & indices
+  const matchingWordObjects = searchQuery.trim()
+    ? clipWords.map((w, idx) => ({ word: w, idx })).filter(item => item.word.word.toLowerCase().includes(searchQuery.toLowerCase().trim()))
+    : [];
+  const matchingIndices = matchingWordObjects.map(item => item.idx);
+
+  const handleBatchReplace = () => {
+    if (!replaceInput.trim() || matchingIndices.length === 0) return;
+    if (onEditPhraseText) {
+      onEditPhraseText(matchingIndices, replaceInput.trim());
+    }
+    setReplaceInput('');
+  };
+
+  const handleBatchBroll = () => {
+    if (matchingWordObjects.length === 0) return;
+    const firstWord = matchingWordObjects[0].word;
+    const lastWord = matchingWordObjects[matchingWordObjects.length - 1].word;
+    if (onOpenBrollPicker) {
+      onOpenBrollPicker({
+        start: firstWord.start,
+        end: Math.max(firstWord.start + 2, lastWord.end),
+        text: searchQuery
+      });
+    }
+  };
+
+  const handleBatchDelete = () => {
+    if (matchingIndices.length === 0) return;
+    if (onToggleExcludeWords) {
+      onToggleExcludeWords(matchingIndices);
+    }
+  };
 
   return (
     <div 
@@ -155,28 +185,74 @@ export default function OpusTranscript({
       onMouseUp={handleMouseUp}
       className="h-full bg-[#0d0e15] flex flex-col font-sans select-text leading-relaxed text-sm relative"
     >
-      {/* ── Search Bar Header ── */}
-      <div className="p-3 bg-[#11131c] border-b border-[#212434] flex items-center justify-between gap-3 shrink-0">
-        <div className="flex-1 flex items-center gap-2 bg-[#171924] border border-[#272b3d] rounded-xl px-3 py-1.5 focus-within:border-indigo-500">
-          <Search className="w-3.5 h-3.5 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Tìm kiếm từ khóa trong transcript..."
-            className="bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none w-full font-medium"
-          />
-          {searchQuery && (
-            <button onClick={() => setSearchQuery('')} className="text-slate-400 hover:text-white">
-              <X className="w-3 h-3" />
-            </button>
+      {/* ── Search Bar & Batch Actions Toolbar ── */}
+      <div className="p-3 bg-[#11131c] border-b border-[#212434] space-y-2.5 shrink-0">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 flex items-center gap-2 bg-[#171924] border border-[#272b3d] rounded-xl px-3 py-1.5 focus-within:border-indigo-500">
+            <Search className="w-3.5 h-3.5 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm kiếm từ khóa trong transcript..."
+              className="bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none w-full font-medium"
+            />
+            {searchQuery && (
+              <button onClick={() => { setSearchQuery(''); setReplaceInput(''); }} className="text-slate-400 hover:text-white">
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
+          {searchQuery.trim() && (
+            <span className="text-[11px] font-mono text-indigo-400 shrink-0 font-semibold">
+              {matchingIndices.length} kết quả
+            </span>
           )}
         </div>
 
-        {searchQuery.trim() && (
-          <span className="text-[11px] font-mono text-indigo-400 shrink-0 font-semibold">
-            {matchingWordsCount} kết quả
-          </span>
+        {/* Batch Actions for Search Matches */}
+        {searchQuery.trim() && matchingIndices.length > 0 && (
+          <div className="p-2.5 bg-[#171926] border border-[#272b40] rounded-2xl space-y-2 animate-fade-in text-xs">
+            <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
+              <span>Tác vụ hàng loạt cho <strong className="text-amber-400 font-mono font-bold">"{searchQuery}"</strong> ({matchingIndices.length} từ):</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={replaceInput}
+                onChange={(e) => setReplaceInput(e.target.value)}
+                placeholder="Nhập từ mới để sửa tất cả..."
+                className="flex-1 bg-[#0d0e15] border border-[#2c3047] text-white text-xs rounded-xl px-2.5 py-1 focus:outline-none focus:border-indigo-500 font-medium"
+              />
+              <button
+                disabled={!replaceInput.trim()}
+                onClick={handleBatchReplace}
+                className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white rounded-xl font-bold text-xs transition active:scale-95 shadow-sm shrink-0"
+              >
+                Sửa tất cả
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5 pt-1 border-t border-[#202334]">
+              <button
+                onClick={handleBatchBroll}
+                className="flex-1 flex items-center justify-center gap-1 py-1 rounded-xl bg-[#202334] hover:bg-[#2c3047] text-amber-300 font-semibold text-[11px] transition"
+              >
+                <Film className="w-3 h-3" />
+                <span>+ B-Roll đoạn này</span>
+              </button>
+
+              <button
+                onClick={handleBatchDelete}
+                className="flex-1 flex items-center justify-center gap-1 py-1 rounded-xl bg-rose-950/50 hover:bg-rose-900 border border-rose-800/40 text-rose-300 font-bold text-[11px] transition"
+              >
+                <Trash2 className="w-3 h-3" />
+                <span>Xóa các đoạn này</span>
+              </button>
+            </div>
+          </div>
         )}
       </div>
 

@@ -150,8 +150,18 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
   const [customStart, setCustomStart] = useState(Math.round(phraseStart * 10) / 10);
   const [customEnd, setCustomEnd] = useState(Math.round(phraseEnd * 10) / 10 || 4);
 
-  // B-Roll Layout Style
+  // B-Roll Layout Style & Enter Transition
   const [brollStyle, setBrollStyle] = useState('split_50_50_top');
+  const [enterTransition, setEnterTransition] = useState('zoom_in');
+
+  const transitionOptions = [
+    { id: 'zoom_in', name: 'Zoom In Punch (Mặc định)', desc: 'Phóng to đột ngột giật gân, cuốn hút' },
+    { id: 'fade_in', name: 'Fade In Dissolve', desc: 'Mờ dần vào mềm mại, tự nhiên' },
+    { id: 'slide_up', name: 'Smooth Slide Up', desc: 'Trượt từ dưới lên' },
+    { id: 'flash_white', name: 'Flash White Impact', desc: 'Chớp sáng điện ảnh' },
+    { id: 'glitch', name: 'Glitch Cyber', desc: 'Nhiễu sóng kỹ thuật số' },
+    { id: 'none', name: 'Không Hiệu Ứng (Hard Cut)', desc: 'Cắt thẳng liền mạch' },
+  ];
 
   const fileInputRef = useRef(null);
   const trimVideoRef = useRef(null);
@@ -259,7 +269,8 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
       duration: Math.round((endSec - startSec) * 10) / 10,
       videoTrimStart: isVideo ? Math.round(trimStart * 10) / 10 : 0,
       videoTrimEnd: isVideo ? Math.round(trimEnd * 10) / 10 : (selectedItem.duration || 5),
-      style: brollStyle
+      style: brollStyle,
+      enterTransition: enterTransition || 'zoom_in'
     });
 
     onClose();
@@ -544,7 +555,37 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
               </div>
             </div>
 
-            {/* 3. Display Style Selection with Smooth Boundary Blend Notice */}
+            {/* 3. Enter Transition Selection */}
+            <div className="p-3 bg-[#161824] border border-[#262a3d] rounded-2xl space-y-2">
+              <div className="font-bold text-white flex items-center justify-between pb-1 border-b border-[#202334]">
+                <div className="flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Hiệu Ứng Vào (Enter Transition)</span>
+                </div>
+                <span className="text-[10px] text-amber-300 font-mono font-semibold">Mặc định: Zoom In</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-1.5">
+                {transitionOptions.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setEnterTransition(opt.id)}
+                    className={`p-2 rounded-xl text-left transition-all border flex items-center justify-between ${
+                      enterTransition === opt.id
+                        ? 'bg-amber-950/60 border-amber-500 text-white shadow-sm ring-1 ring-amber-500'
+                        : 'bg-[#10121a] hover:bg-[#1b1e2c] border-[#23273a] text-slate-300'
+                    }`}
+                  >
+                    <div className="truncate">
+                      <div className="font-bold text-[11px] truncate">{opt.name}</div>
+                    </div>
+                    {enterTransition === opt.id && <Check className="w-3.5 h-3.5 text-amber-400 shrink-0 ml-1" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 4. Display Style Selection with Smooth Boundary Blend Notice */}
             <div className="p-3 bg-[#161824] border border-[#262a3d] rounded-2xl space-y-2">
               <div className="font-bold text-white flex items-center justify-between pb-1 border-b border-[#202334]">
                 <div className="flex items-center gap-1.5">

@@ -11,6 +11,7 @@ import BrollPickerModal from './components/BrollPickerModal';
 import SoundFxPickerModal from './components/SoundFxPickerModal';
 import AICopilotDrawer from './components/AICopilotDrawer';
 import WysiwygExportModal from './components/WysiwygExportModal';
+import ProjectsLibraryModal from './components/ProjectsLibraryModal';
 import { toPng } from 'html-to-image';
 import { RefreshCw } from 'lucide-react';
 
@@ -25,6 +26,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isExportingHd, setIsExportingHd] = useState(false);
   const [isWysiwygModalOpen, setIsWysiwygModalOpen] = useState(false);
+  const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
 
   // AI Copilot Drawer State & Selected Model (Phiên 4)
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
@@ -397,6 +399,26 @@ export default function App() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleSwitchProject = (newData) => {
+    if (!newData) return;
+    setData(newData);
+    if (newData.viral_clips && newData.viral_clips.length > 0) {
+      const firstClip = newData.viral_clips[0];
+      setActiveClip(firstClip);
+      setCurrentTime(firstClip.start_time);
+      setCustomTitle(firstClip.title || '');
+      setBrolls(firstClip.brolls || []);
+      setSoundFxMarkers(firstClip.soundFxMarkers || []);
+      setExcludedWordIndices(new Set());
+      setExcludedPauseIndices(new Set());
+      setCurrentView('dashboard');
+    }
+  };
+
+  const handleUpdateBroll = (updatedBroll) => {
+    setBrolls(prev => prev.map(b => b.id === updatedBroll.id ? updatedBroll : b));
+  };
 
   // Filter words belonging to current clip
   const allWords = data?.transcript?.words || [];
@@ -1288,6 +1310,7 @@ export default function App() {
             onExportHd={handleExportHd}
             onExportWysiwyg={() => setIsWysiwygModalOpen(true)}
             onSaveProject={handleSaveProject}
+            onOpenProjects={() => setIsProjectsModalOpen(true)}
             isExportingHd={isExportingHd}
             videoTitle={data?.video_metadata?.title}
             onBackToDashboard={() => setCurrentView('dashboard')}
@@ -1455,6 +1478,7 @@ export default function App() {
             onUpdateSoundFxTime={handleUpdateSoundFxTime}
             onDeleteSoundFx={handleDeleteSoundFx}
             onDeleteBroll={(id) => setBrolls(prev => prev.filter(b => b.id !== id))}
+            onUpdateBroll={handleUpdateBroll}
             onDeleteScene={handleDeleteScene}
             onUpdateSceneTransition={handleUpdateSceneTransition}
           />
@@ -1488,6 +1512,13 @@ export default function App() {
         onClose={() => setIsSoundFxPickerOpen(false)}
         onSelect={handleSelectSoundFx}
         timestamp={soundFxTimestamp}
+      />
+
+      {/* 📂 Modal Kho Dự Án Video (Bảo lưu toàn bộ video cũ, không bao giờ bị mất) */}
+      <ProjectsLibraryModal
+        isOpen={isProjectsModalOpen}
+        onClose={() => setIsProjectsModalOpen(false)}
+        onSwitchProject={handleSwitchProject}
       />
 
       {/* 🎬 Modal Xuất Video WYSIWYG Chuẩn CapCut (Khớp 100% Preview) */}

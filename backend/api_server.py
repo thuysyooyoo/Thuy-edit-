@@ -31,7 +31,81 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+import time
+
 RESULTS_FILE = OUTPUT_CLIPS_DIR / "pipeline_results.json"
+PROJECTS_DIR = OUTPUT_CLIPS_DIR / "projects"
+PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
+PROJECTS_INDEX_FILE = PROJECTS_DIR / "projects_index.json"
+
+def _ensure_project_index():
+    if not PROJECTS_INDEX_FILE.exists():
+        index = []
+        if RESULTS_FILE.exists():
+            try:
+                with open(RESULTS_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                meta = data.get("video_metadata", {})
+                title = meta.get("title", "Dự Án Đã Nạp")
+                proj_id = f"proj_{int(time.time())}"
+                proj_file = PROJECTS_DIR / f"{proj_id}.json"
+                with open(proj_file, "w", encoding="utf-8") as pf:
+                    json.dump(data, pf, ensure_ascii=False, indent=2)
+                index.append({
+                    "id": proj_id,
+                    "title": title,
+                    "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "video_path": meta.get("video_path", ""),
+                    "duration": meta.get("duration", 0),
+                    "clip_count": len(data.get("viral_clips", [])),
+                    "is_active": True
+                })
+            except Exception as e:
+                print("Index migration notice:", e)
+        with open(PROJECTS_INDEX_FILE, "w", encoding="utf-8") as f:
+            json.dump(index, f, ensure_ascii=False, indent=2)
+
+def _save_project_data(project_data: dict, is_active: bool = True) -> str:
+    _ensure_project_index()
+    meta = project_data.get("video_metadata", {})
+    title = meta.get("title") or "Dự Án Video"
+    safe_slug = re.sub(r'[^a-zA-Z0-9_]', '_', title)[:30]
+    proj_id = f"proj_{int(time.time())}_{safe_slug}"
+    
+    # Lưu file dự án riêng biệt
+    proj_file = PROJECTS_DIR / f"{proj_id}.json"
+    with open(proj_file, "w", encoding="utf-8") as f:
+        json.dump(project_data, f, ensure_ascii=False, indent=2)
+        
+    # Đồng thời lưu vào RESULTS_FILE để phục vụ Active Session
+    with open(RESULTS_FILE, "w", encoding="utf-8") as f:
+        json.dump(project_data, f, ensure_ascii=False, indent=2)
+
+    # Cập nhật danh mục dự án
+    try:
+        with open(PROJECTS_INDEX_FILE, "r", encoding="utf-8") as f:
+            index = json.load(f)
+    except Exception:
+        index = []
+
+    for item in index:
+        item["is_active"] = False
+
+    index.insert(0, {
+        "id": proj_id,
+        "title": title,
+        "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "video_path": meta.get("video_path", ""),
+        "duration": meta.get("duration", 0),
+        "clip_count": len(project_data.get("viral_clips", [])),
+        "is_active": True
+    })
+
+    with open(PROJECTS_INDEX_FILE, "w", encoding="utf-8") as f:
+        json.dump(index, f, ensure_ascii=False, indent=2)
+
+    return proj_id
+
 copilot_instance = CopilotEngine()
 
 # State tracking for background video processing
@@ -146,8 +220,8 @@ def _background_run_pipeline(input_source: str, gemini_api_key: Optional[str] = 
             "exported_files": exported_files,
             "api_warning": api_warning
         }
-        with open(RESULTS_FILE, "w", encoding="utf-8") as fp:
-            json.dump(results, fp, ensure_ascii=False, indent=2)
+        # Lưu an toàn vào kho dự án đa video (Không bao giờ ghi đè làm mất video cũ!)
+        _save_project_data(results, is_active=True)
 
         current_job["status"] = "completed"
         current_job["progress"] = 100
@@ -199,6 +273,89 @@ async def process_stream():
             await asyncio.sleep(0.5)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+@app.get("/api/projects")
+def list_projects_endpoint():
+    """
+    📂 Lấy danh sách tất cả các video / dự án đã từng nạp vào hệ thống (Không bao giờ mất video cũ).
+    """
+    _ensure_project_index()
+    try:
+        with open(PROJECTS_INDEX_FILE, "r", encoding="utf-8") as f:
+            index = json.load(f)
+        return {"projects": index}
+    except Exception as e:
+        return {"projects": []}
+
+@app.post("/api/projects/switch/{project_id}")
+def switch_project_endpoint(project_id: str):
+    """
+    🔄 Chuyển sang dự án video cũ để tiếp tục chỉnh sửa.
+    """
+    _ensure_project_index()
+    proj_file = PROJECTS_DIR / f"{project_id}.json"
+    if not proj_file.exists():
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy dự án {project_id}")
+
+    try:
+        with open(proj_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        # Ghi đè vào file session active
+        with open(RESULTS_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        # Cập nhật is_active trong index
+        with open(PROJECTS_INDEX_FILE, "r", encoding="utf-8") as f:
+            index = json.load(f)
+
+        for item in index:
+            item["is_active"] = (item["id"] == project_id)
+
+        with open(PROJECTS_INDEX_FILE, "w", encoding="utf-8") as f:
+            json.dump(index, f, ensure_ascii=False, indent=2)
+
+        return {"success": True, "message": f"Đã chuyển sang dự án {project_id}", "data": data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/projects/save-current")
+async def save_current_project_state(req: Request):
+    """
+    💾 Lưu trạng thái chỉnh sửa hiện tại (B-Roll, Subtitle, SFX) vào file dự án tương ứng.
+    """
+    try:
+        body = await req.json()
+        if not RESULTS_FILE.exists():
+            raise HTTPException(status_code=404, detail="Chưa có dữ liệu session active")
+
+        with open(RESULTS_FILE, "r", encoding="utf-8") as f:
+            curr_data = json.load(f)
+
+        # Cập nhật các trường chỉnh sửa
+        if "viral_clips" in body:
+            curr_data["viral_clips"] = body["viral_clips"]
+        if "transcript" in body:
+            curr_data["transcript"] = body["transcript"]
+
+        # Lưu lại vào RESULTS_FILE
+        with open(RESULTS_FILE, "w", encoding="utf-8") as f:
+            json.dump(curr_data, f, ensure_ascii=False, indent=2)
+
+        # Tìm dự án active trong index và lưu vào file dự án
+        _ensure_project_index()
+        with open(PROJECTS_INDEX_FILE, "r", encoding="utf-8") as f:
+            index = json.load(f)
+
+        active_proj = next((p for p in index if p.get("is_active")), None)
+        if active_proj:
+            proj_file = PROJECTS_DIR / f"{active_proj['id']}.json"
+            with open(proj_file, "w", encoding="utf-8") as pf:
+                json.dump(curr_data, pf, ensure_ascii=False, indent=2)
+
+        return {"success": True, "message": "Đã lưu trạng thái dự án thành công"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/copilot/models")
 def get_available_copilot_models():
