@@ -254,27 +254,18 @@ export default function OpusTranscript({
               </button>
             </div>
 
-            <div className="flex items-center gap-2 pt-1 border-t border-[#202334]">
-              <button
-                onClick={handleBatchBroll}
-                title={`Chèn B-Roll vào ${matchingIndices.length} vị trí xuất hiện từ "${searchQuery}"`}
-                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-amber-950/60 hover:bg-amber-900 border border-amber-600/50 text-amber-300 font-bold text-[11px] transition active:scale-95 shadow-sm"
-              >
-                <Film className="w-3.5 h-3.5" />
-                <span>🎬 + B-Roll ({matchingIndices.length} vị trí)</span>
-              </button>
-
+            <div className="pt-1 border-t border-[#202334]">
               <button
                 onClick={handleBatchDelete}
                 title={isAllMatchesExcluded ? "Khôi phục lại các đoạn này vào video" : `Xóa bỏ và ngắt ${matchingIndices.length} đoạn chứa từ "${searchQuery}"`}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl font-bold text-[11px] transition active:scale-95 ${
+                className={`w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl font-bold text-[11px] transition active:scale-95 ${
                   isAllMatchesExcluded
                     ? 'bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-600/50 text-emerald-300 shadow-sm'
                     : 'bg-rose-950/70 hover:bg-rose-900 border border-rose-800/60 text-rose-300 shadow-sm'
                 }`}
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>{isAllMatchesExcluded ? `↩️ Khôi phục (${matchingIndices.length})` : `✂️ Xóa các đoạn này (${matchingIndices.length})`}</span>
+                <span>{isAllMatchesExcluded ? `↩️ Khôi phục lại ${matchingIndices.length} từ này` : `✂️ Xóa tất cả ${matchingIndices.length} đoạn này`}</span>
               </button>
             </div>
           </div>

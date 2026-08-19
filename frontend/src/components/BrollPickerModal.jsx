@@ -13,7 +13,8 @@ import {
   Play, 
   Pause,
   Trash2,
-  AlertCircle
+  Sparkles,
+  Zap
 } from 'lucide-react';
 
 const INITIAL_STOCK_BROLLS = [
@@ -26,7 +27,7 @@ const INITIAL_STOCK_BROLLS = [
     thumb: '🚢', 
     imageUrl: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&auto=format&fit=crop&q=80',
     fileUrl: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&auto=format&fit=crop&q=80',
-    bg: 'from-blue-900 to-indigo-950' 
+    bg: 'from-blue-900 via-indigo-900 to-slate-950' 
   },
   { 
     id: 'sb_2', 
@@ -37,7 +38,7 @@ const INITIAL_STOCK_BROLLS = [
     thumb: '📦', 
     imageUrl: 'https://images.unsplash.com/photo-1553413077-190dd305871c?w=800&auto=format&fit=crop&q=80',
     fileUrl: 'https://images.unsplash.com/photo-1553413077-190dd305871c?w=800&auto=format&fit=crop&q=80',
-    bg: 'from-amber-900 to-yellow-950' 
+    bg: 'from-amber-900 via-orange-950 to-slate-950' 
   },
   { 
     id: 'sb_3', 
@@ -48,62 +49,62 @@ const INITIAL_STOCK_BROLLS = [
     thumb: '💼', 
     imageUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&auto=format&fit=crop&q=80',
     fileUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&auto=format&fit=crop&q=80',
-    bg: 'from-slate-900 to-zinc-950' 
+    bg: 'from-slate-900 via-zinc-900 to-black' 
   },
   { 
     id: 'sb_4', 
     title: 'Kiểm Định Chất Lượng Tiêu Chuẩn', 
-    category: 'Pháp lý', 
+    category: 'Pháp lý & Giám định', 
     mediaType: 'image', 
     duration: 4, 
     thumb: '🔬', 
     imageUrl: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&auto=format&fit=crop&q=80',
     fileUrl: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&auto=format&fit=crop&q=80',
-    bg: 'from-emerald-900 to-teal-950' 
+    bg: 'from-emerald-900 via-teal-950 to-slate-950' 
   },
   { 
     id: 'sb_5', 
     title: 'Văn Phòng Hiện Đại & Máy Tính', 
-    category: 'Công nghệ', 
+    category: 'Công nghệ & Báo cáo', 
     mediaType: 'image', 
     duration: 5, 
     thumb: '🏢', 
     imageUrl: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&auto=format&fit=crop&q=80',
     fileUrl: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&auto=format&fit=crop&q=80',
-    bg: 'from-cyan-900 to-blue-950' 
+    bg: 'from-cyan-900 via-blue-950 to-slate-950' 
   },
   { 
     id: 'sb_6', 
     title: 'Ký Kết Hợp Đồng Pháp Lý', 
-    category: 'Pháp lý', 
+    category: 'Pháp lý & Chứng nhận', 
     mediaType: 'image', 
     duration: 5, 
     thumb: '📑', 
     imageUrl: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?w=800&auto=format&fit=crop&q=80',
     fileUrl: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?w=800&auto=format&fit=crop&q=80',
-    bg: 'from-purple-900 to-slate-950' 
+    bg: 'from-purple-900 via-violet-950 to-slate-950' 
   },
   { 
     id: 'sb_7', 
     title: 'Dây Chuyền Sản Xuất Nhà Máy', 
-    category: 'Sản xuất', 
+    category: 'Sản xuất công nghiệp', 
     mediaType: 'image', 
     duration: 7, 
     thumb: '🏭', 
     imageUrl: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&auto=format&fit=crop&q=80',
     fileUrl: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&auto=format&fit=crop&q=80',
-    bg: 'from-orange-900 to-amber-950' 
+    bg: 'from-orange-900 via-amber-950 to-slate-950' 
   },
   { 
     id: 'sb_8', 
     title: 'Biểu Đồ Tăng Trưởng Doanh Thu', 
-    category: 'Tài chính', 
+    category: 'Tài chính & Thuế', 
     mediaType: 'image', 
     duration: 4, 
     thumb: '📈', 
     imageUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80',
     fileUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80',
-    bg: 'from-green-900 to-emerald-950' 
+    bg: 'from-green-900 via-emerald-950 to-slate-950' 
   },
   { 
     id: 'sb_9', 
@@ -114,18 +115,18 @@ const INITIAL_STOCK_BROLLS = [
     thumb: '🚜', 
     imageUrl: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800&auto=format&fit=crop&q=80',
     fileUrl: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800&auto=format&fit=crop&q=80',
-    bg: 'from-amber-900 to-stone-950' 
+    bg: 'from-amber-950 via-stone-900 to-black' 
   },
   { 
     id: 'sb_10', 
     title: 'Kho Hàng Lớn & Vận Chuyển', 
-    category: 'Xuất nhập khẩu', 
+    category: 'Xuất nhập khẩu & Kho bãi', 
     mediaType: 'image', 
     duration: 5, 
     thumb: '🏬', 
     imageUrl: 'https://images.unsplash.com/photo-1587293852726-70cdb56c2866?w=800&auto=format&fit=crop&q=80',
     fileUrl: 'https://images.unsplash.com/photo-1587293852726-70cdb56c2866?w=800&auto=format&fit=crop&q=80',
-    bg: 'from-blue-900 to-slate-950' 
+    bg: 'from-blue-950 via-slate-900 to-black' 
   }
 ];
 
@@ -144,7 +145,6 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
 
   // Main Clip Placement Timing
   const [timingMode, setTimingMode] = useState('phrase'); // 'phrase' | 'custom'
-  const [applyToAll, setApplyToAll] = useState(false);
 
   const phraseStart = timeRange?.start !== undefined ? Math.max(0, timeRange.start - clipStartTime) : 0;
   const phraseEnd = timeRange?.end !== undefined ? Math.max(0, timeRange.end - clipStartTime) : 4;
@@ -152,17 +152,18 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
   const [customStart, setCustomStart] = useState(Math.round(phraseStart * 10) / 10);
   const [customEnd, setCustomEnd] = useState(Math.round(phraseEnd * 10) / 10 || 4);
 
-  // Đồng bộ lại mốc thời gian và chế độ chèn hàng loạt mỗi khi mở Modal hoặc đổi timeRange
+  // Đồng bộ lại mốc thời gian và reset tìm kiếm mỗi khi mở Modal
   useEffect(() => {
-    if (isOpen && timeRange) {
-      const pStart = timeRange.start !== undefined ? Math.max(0, timeRange.start - clipStartTime) : 0;
-      const pEnd = timeRange.end !== undefined ? Math.max(0, timeRange.end - clipStartTime) : (pStart + 4);
-      setCustomStart(Math.round(pStart * 10) / 10);
-      setCustomEnd(Math.round(pEnd * 10) / 10);
-      if (timeRange.occurrences && timeRange.occurrences.length > 1) {
-        setApplyToAll(true);
-      } else {
-        setApplyToAll(false);
+    if (isOpen) {
+      setSearchQuery('');
+      if (timeRange) {
+        const pStart = timeRange.start !== undefined ? Math.max(0, timeRange.start - clipStartTime) : 0;
+        const pEnd = timeRange.end !== undefined ? Math.max(0, timeRange.end - clipStartTime) : (pStart + 4);
+        setCustomStart(Math.round(pStart * 10) / 10);
+        setCustomEnd(Math.round(pEnd * 10) / 10);
+      }
+      if (!selectedItem && stockList.length > 0) {
+        setSelectedItem(stockList[0]);
       }
     }
   }, [isOpen, timeRange, clipStartTime]);
@@ -267,54 +268,28 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
   const handleConfirmInsert = () => {
     if (!selectedItem) return;
 
+    const startSec = timingMode === 'phrase' ? phraseStart : parseFloat(customStart) || 0;
+    const endSec = timingMode === 'phrase' ? Math.max(startSec + 1, phraseEnd) : Math.max(startSec + 1, parseFloat(customEnd) || (startSec + 4));
     const isVideo = selectedItem.mediaType === 'video';
     const mediaUrl = selectedItem.fileUrl || selectedItem.imageUrl || selectedItem.videoUrl;
 
-    if (applyToAll && timeRange?.occurrences && timeRange.occurrences.length > 0) {
-      const brollList = timeRange.occurrences.map((occ, idx) => {
-        const occStart = Math.max(0, occ.start - clipStartTime);
-        const occEnd = Math.max(occStart + 1, occ.end - clipStartTime + 2.0);
-        return {
-          id: `broll_${Date.now()}_${idx}`,
-          title: selectedItem.title,
-          thumb: selectedItem.thumb,
-          mediaType: selectedItem.mediaType || 'image',
-          fileUrl: mediaUrl,
-          imageUrl: selectedItem.imageUrl || (!isVideo ? mediaUrl : null),
-          videoUrl: selectedItem.videoUrl || (isVideo ? mediaUrl : null),
-          bg: selectedItem.bg,
-          start: Math.round(occStart * 10) / 10,
-          end: Math.round(occEnd * 10) / 10,
-          duration: Math.round((occEnd - occStart) * 10) / 10,
-          videoTrimStart: isVideo ? Math.round(trimStart * 10) / 10 : 0,
-          videoTrimEnd: isVideo ? Math.round(trimEnd * 10) / 10 : (selectedItem.duration || 5),
-          style: brollStyle,
-          enterTransition: enterTransition || 'zoom_in'
-        };
-      });
-      onSelect(brollList);
-    } else {
-      const startSec = timingMode === 'phrase' ? phraseStart : parseFloat(customStart) || 0;
-      const endSec = timingMode === 'phrase' ? Math.max(startSec + 1, phraseEnd) : Math.max(startSec + 1, parseFloat(customEnd) || (startSec + 4));
-
-      onSelect({
-        id: `broll_${Date.now()}`,
-        title: selectedItem.title,
-        thumb: selectedItem.thumb,
-        mediaType: selectedItem.mediaType || 'image',
-        fileUrl: mediaUrl,
-        imageUrl: selectedItem.imageUrl || (!isVideo ? mediaUrl : null),
-        videoUrl: selectedItem.videoUrl || (isVideo ? mediaUrl : null),
-        bg: selectedItem.bg,
-        start: Math.round(startSec * 10) / 10,
-        end: Math.round(endSec * 10) / 10,
-        duration: Math.round((endSec - startSec) * 10) / 10,
-        videoTrimStart: isVideo ? Math.round(trimStart * 10) / 10 : 0,
-        videoTrimEnd: isVideo ? Math.round(trimEnd * 10) / 10 : (selectedItem.duration || 5),
-        style: brollStyle,
-        enterTransition: enterTransition || 'zoom_in'
-      });
-    }
+    onSelect({
+      id: `broll_${Date.now()}`,
+      title: selectedItem.title,
+      thumb: selectedItem.thumb,
+      mediaType: selectedItem.mediaType || 'image',
+      fileUrl: mediaUrl,
+      imageUrl: selectedItem.imageUrl || (!isVideo ? mediaUrl : null),
+      videoUrl: selectedItem.videoUrl || (isVideo ? mediaUrl : null),
+      bg: selectedItem.bg,
+      start: Math.round(startSec * 10) / 10,
+      end: Math.round(endSec * 10) / 10,
+      duration: Math.round((endSec - startSec) * 10) / 10,
+      videoTrimStart: isVideo ? Math.round(trimStart * 10) / 10 : 0,
+      videoTrimEnd: isVideo ? Math.round(trimEnd * 10) / 10 : (selectedItem.duration || 5),
+      style: brollStyle,
+      enterTransition: enterTransition || 'zoom_in'
+    });
 
     onClose();
   };
@@ -333,19 +308,24 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 select-none font-sans">
       <div className="bg-[#11121a] border border-[#262a3d] rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[92vh] animate-fade-in">
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-[#202334] flex items-center justify-between">
+        <div className="p-4 sm:p-5 border-b border-[#202334] flex items-center justify-between bg-[#151726]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
-              <Film className="w-4 h-4" />
+            <div className="w-9 h-9 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
+              <Film className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white">Chèn, Tải Lên & Quản Lý B-Roll</h3>
-              <p className="text-[11px] text-slate-400">
-                Tải lên (MP4, MOV, Ảnh), xóa tư liệu tùy chọn và hòa trộn màu tiếp giáp mượt mà
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                Kho Tư Liệu B-Roll & Hiệu Ứng
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold">
+                  {stockList.length} Tư Liệu
+                </span>
+              </h3>
+              <p className="text-xs text-slate-400">
+                Chọn tư liệu có sẵn hoặc tải lên file MP4, MOV, Ảnh của bạn để chèn vào video
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-xl bg-[#1a1c29] text-slate-400 hover:text-white">
+          <button onClick={onClose} className="p-2 rounded-xl bg-[#1e2132] text-slate-400 hover:text-white transition">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -358,18 +338,18 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
               <div className="flex gap-2">
                 <button
                   onClick={() => setActiveTab('stock')}
-                  className={`pb-1 px-2 font-bold transition-all ${
+                  className={`pb-1 px-2.5 font-bold text-xs transition-all ${
                     activeTab === 'stock' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  Thư Viện ({stockList.length})
+                  Thư Viện Có Sẵn ({stockList.length})
                 </button>
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="pb-1 px-2 font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                  className="pb-1 px-2.5 font-bold text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
                 >
                   <UploadCloud className="w-3.5 h-3.5" />
-                  <span>+ Tải Lên (MP4, MOV, Ảnh...)</span>
+                  <span>+ Tải Lên Video/Ảnh</span>
                 </button>
               </div>
 
@@ -390,15 +370,22 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm kiếm tư liệu..."
-                className="w-full bg-[#0a0b10] border border-[#23273a] rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                placeholder="Tìm kiếm tư liệu theo tên hoặc danh mục..."
+                className="w-full bg-[#0a0b10] border border-[#23273a] rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 font-medium"
               />
             </div>
 
             {/* Stock / Upload Grid with Delete Button */}
             {filteredStock.length === 0 ? (
-              <div className="py-12 text-center text-slate-500 text-xs">
-                Không tìm thấy tư liệu nào. Hãy bấm <strong>+ Tải Lên</strong> để thêm video/ảnh mới.
+              <div className="py-12 text-center text-slate-400 text-xs space-y-2">
+                <Film className="w-10 h-10 text-slate-600 mx-auto" />
+                <p>Không tìm thấy tư liệu nào khớp với từ khóa tìm kiếm.</p>
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="px-3 py-1 bg-[#202334] text-amber-300 rounded-xl text-xs font-bold hover:bg-[#2a2e45]"
+                >
+                  Xem tất cả tư liệu
+                </button>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-2.5">
@@ -408,46 +395,63 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
                     <div
                       key={item.id}
                       onClick={() => setSelectedItem(item)}
-                      className={`relative p-3 rounded-2xl border cursor-pointer flex flex-col justify-between transition-all group ${
+                      className={`relative p-2.5 rounded-2xl border cursor-pointer flex flex-col justify-between transition-all group ${
                         isSelected
                           ? 'bg-amber-950/40 border-amber-500 shadow-md ring-2 ring-amber-500'
                           : 'bg-[#161824] hover:bg-[#202336] border-[#25283a]'
                       }`}
                     >
-                      {/* Delete Button on Card */}
-                      <button
-                        onClick={(e) => handleDeleteItem(e, item.id)}
-                        title="Xóa mục B-Roll này khỏi thư viện"
-                        className="absolute top-2 right-2 w-6 h-6 rounded-lg bg-black/70 hover:bg-rose-600 border border-white/20 text-slate-300 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-20"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
+                      {/* Delete Button on Custom Items */}
+                      {item.isCustom && (
+                        <button
+                          onClick={(e) => handleDeleteItem(e, item.id)}
+                          title="Xóa mục B-Roll này khỏi thư viện"
+                          className="absolute top-2 right-2 w-6 h-6 rounded-lg bg-black/70 hover:bg-rose-600 border border-white/20 text-slate-300 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-20"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
 
-                      <div className={`h-20 bg-gradient-to-br ${item.bg || 'from-slate-900 to-black'} rounded-xl flex items-center justify-center text-2xl mb-2 overflow-hidden relative`}>
+                      {/* Thumbnail Container */}
+                      <div className={`h-22 bg-gradient-to-br ${item.bg || 'from-slate-900 to-black'} rounded-xl flex flex-col items-center justify-center text-3xl mb-2 overflow-hidden relative shadow-inner`}>
                         {item.fileUrl ? (
                           item.mediaType === 'video' ? (
                             <video src={item.fileUrl} className="w-full h-full object-cover" muted />
                           ) : (
-                            <img src={item.fileUrl} alt={item.title} className="w-full h-full object-cover" />
+                            <img 
+                              src={item.fileUrl} 
+                              alt={item.title} 
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                              }}
+                            />
                           )
-                        ) : (
-                          <span>{item.thumb}</span>
-                        )}
+                        ) : null}
+
+                        {/* Always visible fallback icon */}
+                        <span className="absolute z-0 select-none text-2xl drop-shadow-md">{item.thumb}</span>
 
                         {item.isCustom && (
-                          <span className="absolute bottom-1 left-1 bg-indigo-600/90 text-white font-bold text-[8px] px-1.5 py-0.2 rounded font-mono">
+                          <span className="absolute bottom-1 left-1 bg-indigo-600/90 text-white font-bold text-[8px] px-1.5 py-0.2 rounded font-mono z-10">
                             Đã Tải Lên
                           </span>
+                        )}
+                        
+                        {isSelected && (
+                          <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center shadow z-10">
+                            <Check className="w-3 h-3 stroke-[3]" />
+                          </div>
                         )}
                       </div>
 
                       <div>
-                        <h4 className="text-xs font-bold text-white line-clamp-1 group-hover:text-amber-300">
+                        <h4 className="text-xs font-bold text-white line-clamp-1 group-hover:text-amber-300 transition">
                           {item.title}
                         </h4>
                         <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
-                          <span>{item.category}</span>
-                          <span className="font-mono text-amber-400 font-semibold">
+                          <span className="truncate">{item.category}</span>
+                          <span className="font-mono text-amber-400 font-semibold shrink-0 ml-1">
                             {item.mediaType === 'video' ? `${item.duration}s` : 'Ảnh'}
                           </span>
                         </div>
@@ -460,8 +464,27 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
           </div>
 
           {/* Right: Video Trimmer & Placement Setup */}
-          <div className="col-span-6 p-4 space-y-4 overflow-y-auto max-h-[68vh] text-xs">
-            {/* 1. Video Trimmer Player (For Video Media) */}
+          <div className="col-span-6 p-4 space-y-3.5 overflow-y-auto max-h-[68vh] text-xs">
+            {/* 1. Preview Header Card */}
+            {selectedItem && (
+              <div className="p-3 bg-[#161824] border border-[#262a3d] rounded-2xl flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${selectedItem.bg || 'from-amber-600 to-indigo-900'} flex items-center justify-center text-2xl shrink-0 shadow-md`}>
+                  {selectedItem.thumb || '🎬'}
+                </div>
+                <div className="min-w-0">
+                  <div className="font-bold text-white text-xs truncate">{selectedItem.title}</div>
+                  <div className="text-[10px] text-slate-400 flex items-center gap-2 mt-0.5">
+                    <span className="text-indigo-400 font-semibold">{selectedItem.category}</span>
+                    <span>•</span>
+                    <span className="text-amber-400 font-mono font-semibold">
+                      {selectedItem.mediaType === 'video' ? 'Video Media' : 'Hình Ảnh B-Roll'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Video In/Out Trimmer Player (For Video Media) */}
             {selectedItem?.mediaType === 'video' && selectedItem?.fileUrl && (
               <div className="p-3 bg-[#161824] border border-[#262a3d] rounded-2xl space-y-3">
                 <div className="flex items-center justify-between font-bold text-white pb-1 border-b border-[#202334]">
@@ -469,7 +492,7 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
                     <Scissors className="w-3.5 h-3.5 text-amber-400" />
                     <span>Cắt Đoạn Video Gốc (In/Out Trimmer)</span>
                   </div>
-                  <span className="font-mono text-[10px] text-amber-300">
+                  <span className="font-mono text-[10px] text-amber-300 font-bold">
                     Đoạn lấy: {Math.max(0, trimEnd - trimStart).toFixed(1)}s
                   </span>
                 </div>
@@ -488,7 +511,7 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
                   {!isPreviewPlaying && (
                     <button
                       onClick={handleTogglePreviewPlay}
-                      className="absolute w-10 h-10 rounded-full bg-amber-500/90 text-white flex items-center justify-center shadow-lg"
+                      className="absolute w-10 h-10 rounded-full bg-amber-500/90 text-white flex items-center justify-center shadow-lg hover:scale-105 transition"
                     >
                       <Play className="w-5 h-5 fill-current ml-0.5" />
                     </button>
@@ -550,18 +573,20 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
                 <label className="flex items-center gap-2 cursor-pointer text-slate-200">
                   <input
                     type="radio"
-                    name="timing_mode"
+                    name="timingMode"
+                    value="phrase"
                     checked={timingMode === 'phrase'}
                     onChange={() => setTimingMode('phrase')}
                     className="accent-amber-500"
                   />
-                  <span>Theo câu văn đã chọn: <strong className="text-amber-300 font-mono">[{phraseStart.toFixed(1)}s - {phraseEnd.toFixed(1)}s]</strong></span>
+                  <span>Khớp theo đoạn được chọn ({phraseStart.toFixed(1)}s - {phraseEnd.toFixed(1)}s)</span>
                 </label>
 
                 <label className="flex items-center gap-2 cursor-pointer text-slate-200">
                   <input
                     type="radio"
-                    name="timing_mode"
+                    name="timingMode"
+                    value="custom"
                     checked={timingMode === 'custom'}
                     onChange={() => setTimingMode('custom')}
                     className="accent-amber-500"
@@ -597,29 +622,6 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
                 )}
               </div>
             </div>
-
-            {/* Chế độ chèn B-Roll hàng loạt cho các từ tìm kiếm */}
-            {timeRange?.occurrences && timeRange.occurrences.length > 1 && (
-              <div className="p-3 bg-[#1e1b14] border border-amber-500/40 rounded-2xl space-y-1.5 animate-fade-in">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-amber-300 text-xs flex items-center gap-1.5">
-                    <Film className="w-3.5 h-3.5 text-amber-400" />
-                    Chèn hàng loạt ({timeRange.occurrences.length} vị trí):
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={applyToAll}
-                    onChange={(e) => setApplyToAll(e.target.checked)}
-                    className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
-                  />
-                </div>
-                <p className="text-[11px] text-slate-300">
-                  {applyToAll 
-                    ? `Sẽ tự động chèn B-Roll này vào TẤT CẢ ${timeRange.occurrences.length} vị trí xuất hiện từ "${timeRange.text}".`
-                    : `Chỉ chèn vào vị trí đầu tiên (${phraseStart.toFixed(1)}s - ${phraseEnd.toFixed(1)}s).`}
-                </p>
-              </div>
-            )}
 
             {/* 3. Enter Transition Selection */}
             <div className="p-3 bg-[#161824] border border-[#262a3d] rounded-2xl space-y-2">
