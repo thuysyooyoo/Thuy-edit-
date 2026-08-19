@@ -144,11 +144,28 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
 
   // Main Clip Placement Timing
   const [timingMode, setTimingMode] = useState('phrase'); // 'phrase' | 'custom'
+  const [applyToAll, setApplyToAll] = useState(false);
+
   const phraseStart = timeRange?.start !== undefined ? Math.max(0, timeRange.start - clipStartTime) : 0;
   const phraseEnd = timeRange?.end !== undefined ? Math.max(0, timeRange.end - clipStartTime) : 4;
   
   const [customStart, setCustomStart] = useState(Math.round(phraseStart * 10) / 10);
   const [customEnd, setCustomEnd] = useState(Math.round(phraseEnd * 10) / 10 || 4);
+
+  // Đồng bộ lại mốc thời gian và chế độ chèn hàng loạt mỗi khi mở Modal hoặc đổi timeRange
+  useEffect(() => {
+    if (isOpen && timeRange) {
+      const pStart = timeRange.start !== undefined ? Math.max(0, timeRange.start - clipStartTime) : 0;
+      const pEnd = timeRange.end !== undefined ? Math.max(0, timeRange.end - clipStartTime) : (pStart + 4);
+      setCustomStart(Math.round(pStart * 10) / 10);
+      setCustomEnd(Math.round(pEnd * 10) / 10);
+      if (timeRange.occurrences && timeRange.occurrences.length > 1) {
+        setApplyToAll(true);
+      } else {
+        setApplyToAll(false);
+      }
+    }
+  }, [isOpen, timeRange, clipStartTime]);
 
   // B-Roll Layout Style & Enter Transition
   const [brollStyle, setBrollStyle] = useState('split_50_50_top');
@@ -250,28 +267,54 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
   const handleConfirmInsert = () => {
     if (!selectedItem) return;
 
-    const startSec = timingMode === 'phrase' ? phraseStart : parseFloat(customStart) || 0;
-    const endSec = timingMode === 'phrase' ? Math.max(startSec + 1, phraseEnd) : Math.max(startSec + 1, parseFloat(customEnd) || (startSec + 4));
     const isVideo = selectedItem.mediaType === 'video';
     const mediaUrl = selectedItem.fileUrl || selectedItem.imageUrl || selectedItem.videoUrl;
 
-    onSelect({
-      id: `broll_${Date.now()}`,
-      title: selectedItem.title,
-      thumb: selectedItem.thumb,
-      mediaType: selectedItem.mediaType || 'image',
-      fileUrl: mediaUrl,
-      imageUrl: selectedItem.imageUrl || (!isVideo ? mediaUrl : null),
-      videoUrl: selectedItem.videoUrl || (isVideo ? mediaUrl : null),
-      bg: selectedItem.bg,
-      start: Math.round(startSec * 10) / 10,
-      end: Math.round(endSec * 10) / 10,
-      duration: Math.round((endSec - startSec) * 10) / 10,
-      videoTrimStart: isVideo ? Math.round(trimStart * 10) / 10 : 0,
-      videoTrimEnd: isVideo ? Math.round(trimEnd * 10) / 10 : (selectedItem.duration || 5),
-      style: brollStyle,
-      enterTransition: enterTransition || 'zoom_in'
-    });
+    if (applyToAll && timeRange?.occurrences && timeRange.occurrences.length > 0) {
+      const brollList = timeRange.occurrences.map((occ, idx) => {
+        const occStart = Math.max(0, occ.start - clipStartTime);
+        const occEnd = Math.max(occStart + 1, occ.end - clipStartTime + 2.0);
+        return {
+          id: `broll_${Date.now()}_${idx}`,
+          title: selectedItem.title,
+          thumb: selectedItem.thumb,
+          mediaType: selectedItem.mediaType || 'image',
+          fileUrl: mediaUrl,
+          imageUrl: selectedItem.imageUrl || (!isVideo ? mediaUrl : null),
+          videoUrl: selectedItem.videoUrl || (isVideo ? mediaUrl : null),
+          bg: selectedItem.bg,
+          start: Math.round(occStart * 10) / 10,
+          end: Math.round(occEnd * 10) / 10,
+          duration: Math.round((occEnd - occStart) * 10) / 10,
+          videoTrimStart: isVideo ? Math.round(trimStart * 10) / 10 : 0,
+          videoTrimEnd: isVideo ? Math.round(trimEnd * 10) / 10 : (selectedItem.duration || 5),
+          style: brollStyle,
+          enterTransition: enterTransition || 'zoom_in'
+        };
+      });
+      onSelect(brollList);
+    } else {
+      const startSec = timingMode === 'phrase' ? phraseStart : parseFloat(customStart) || 0;
+      const endSec = timingMode === 'phrase' ? Math.max(startSec + 1, phraseEnd) : Math.max(startSec + 1, parseFloat(customEnd) || (startSec + 4));
+
+      onSelect({
+        id: `broll_${Date.now()}`,
+        title: selectedItem.title,
+        thumb: selectedItem.thumb,
+        mediaType: selectedItem.mediaType || 'image',
+        fileUrl: mediaUrl,
+        imageUrl: selectedItem.imageUrl || (!isVideo ? mediaUrl : null),
+        videoUrl: selectedItem.videoUrl || (isVideo ? mediaUrl : null),
+        bg: selectedItem.bg,
+        start: Math.round(startSec * 10) / 10,
+        end: Math.round(endSec * 10) / 10,
+        duration: Math.round((endSec - startSec) * 10) / 10,
+        videoTrimStart: isVideo ? Math.round(trimStart * 10) / 10 : 0,
+        videoTrimEnd: isVideo ? Math.round(trimEnd * 10) / 10 : (selectedItem.duration || 5),
+        style: brollStyle,
+        enterTransition: enterTransition || 'zoom_in'
+      });
+    }
 
     onClose();
   };
@@ -554,6 +597,29 @@ export default function BrollPickerModal({ isOpen, onClose, onSelect, timeRange,
                 )}
               </div>
             </div>
+
+            {/* Chế độ chèn B-Roll hàng loạt cho các từ tìm kiếm */}
+            {timeRange?.occurrences && timeRange.occurrences.length > 1 && (
+              <div className="p-3 bg-[#1e1b14] border border-amber-500/40 rounded-2xl space-y-1.5 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-amber-300 text-xs flex items-center gap-1.5">
+                    <Film className="w-3.5 h-3.5 text-amber-400" />
+                    Chèn hàng loạt ({timeRange.occurrences.length} vị trí):
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={applyToAll}
+                    onChange={(e) => setApplyToAll(e.target.checked)}
+                    className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-300">
+                  {applyToAll 
+                    ? `Sẽ tự động chèn B-Roll này vào TẤT CẢ ${timeRange.occurrences.length} vị trí xuất hiện từ "${timeRange.text}".`
+                    : `Chỉ chèn vào vị trí đầu tiên (${phraseStart.toFixed(1)}s - ${phraseEnd.toFixed(1)}s).`}
+                </p>
+              </div>
+            )}
 
             {/* 3. Enter Transition Selection */}
             <div className="p-3 bg-[#161824] border border-[#262a3d] rounded-2xl space-y-2">

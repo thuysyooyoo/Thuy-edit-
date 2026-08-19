@@ -671,40 +671,71 @@ export default function App() {
     });
   };
 
-  const handleToggleExcludeWords = (indices) => {
+  const handleToggleExcludeWords = (indices, mode = 'toggle') => {
     const next = new Set(excludedWordIndices);
-    indices.forEach(idx => {
-      if (next.has(idx)) next.delete(idx);
-      else next.add(idx);
-    });
+    if (mode === 'exclude') {
+      indices.forEach(idx => next.add(idx));
+    } else if (mode === 'restore') {
+      indices.forEach(idx => next.delete(idx));
+    } else {
+      indices.forEach(idx => {
+        if (next.has(idx)) next.delete(idx);
+        else next.add(idx);
+      });
+    }
     setExcludedWordIndices(next);
   };
 
   const handleEditPhraseText = (indices, newPhraseText) => {
-    if (!data?.transcript?.words || indices.length === 0) return;
+    if (!data?.transcript?.words || indices.length === 0 || !newPhraseText?.trim()) return;
 
-    const firstWord = currentClipWords[indices[0]];
-    const lastWord = currentClipWords[indices[indices.length - 1]];
-    const totalStart = firstWord?.start || 0;
-    const totalEnd = lastWord?.end || totalStart + 1.0;
-    const totalDuration = totalEnd - totalStart;
+    // Kiểm tra xem indices là 1 dải liên tục hay nhiều vị trí tách rời (từ tìm kiếm)
+    const isContiguous = indices.length === 1 || indices.every((val, i, arr) => i === 0 || val === arr[i - 1] + 1);
 
-    const newWordsArr = newPhraseText.trim().split(/\s+/);
-    const wordDuration = totalDuration / Math.max(1, newWordsArr.length);
+    if (isContiguous) {
+      const firstWord = currentClipWords[indices[0]];
+      const lastWord = currentClipWords[indices[indices.length - 1]];
+      const totalStart = firstWord?.start || 0;
+      const totalEnd = lastWord?.end || totalStart + 1.0;
+      const totalDuration = totalEnd - totalStart;
 
-    const replacements = newWordsArr.map((w, i) => ({
-      word: w,
-      start: totalStart + i * wordDuration,
-      end: totalStart + (i + 1) * wordDuration,
-      score: 1.0
-    }));
+      const newWordsArr = newPhraseText.trim().split(/\s+/);
+      const wordDuration = totalDuration / Math.max(1, newWordsArr.length);
 
-    const actualStartIndex = data.transcript.words.findIndex(w => w === firstWord);
-    const actualEndIndex = data.transcript.words.findIndex(w => w === lastWord);
+      const replacements = newWordsArr.map((w, i) => ({
+        word: w,
+        start: totalStart + i * wordDuration,
+        end: totalStart + (i + 1) * wordDuration,
+        score: 1.0
+      }));
 
-    if (actualStartIndex !== -1 && actualEndIndex !== -1) {
-      const updatedWords = [...data.transcript.words];
-      updatedWords.splice(actualStartIndex, (actualEndIndex - actualStartIndex) + 1, ...replacements);
+      const actualStartIndex = data.transcript.words.findIndex(w => w === firstWord);
+      const actualEndIndex = data.transcript.words.findIndex(w => w === lastWord);
+
+      if (actualStartIndex !== -1 && actualEndIndex !== -1) {
+        const updatedWords = [...data.transcript.words];
+        updatedWords.splice(actualStartIndex, (actualEndIndex - actualStartIndex) + 1, ...replacements);
+        setData({
+          ...data,
+          transcript: {
+            ...data.transcript,
+            words: updatedWords
+          }
+        });
+      }
+    } else {
+      // Sửa hàng loạt nhiều từ ở các vị trí khác nhau
+      const targetWordsToReplace = indices.map(idx => currentClipWords[idx]).filter(Boolean);
+      const updatedWords = data.transcript.words.map(w => {
+        if (targetWordsToReplace.includes(w)) {
+          return {
+            ...w,
+            word: newPhraseText.trim()
+          };
+        }
+        return w;
+      });
+
       setData({
         ...data,
         transcript: {
@@ -725,8 +756,12 @@ export default function App() {
     setIsSoundFxPickerOpen(true);
   };
 
-  const handleSelectBroll = (brollObj) => {
-    setBrolls(prev => [...prev, brollObj]);
+  const handleSelectBroll = (brollObjOrArray) => {
+    if (Array.isArray(brollObjOrArray)) {
+      setBrolls(prev => [...prev, ...brollObjOrArray]);
+    } else {
+      setBrolls(prev => [...prev, brollObjOrArray]);
+    }
   };
 
   const handleSelectSoundFx = (fxObj, specificTime = null) => {

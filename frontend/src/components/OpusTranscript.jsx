@@ -145,11 +145,18 @@ export default function OpusTranscript({
     setEditingPhrase(null);
   };
 
-  // Search matching objects & indices
+  // Search matching objects & indices (hỗ trợ cả từ gốc lẫn từ đã bỏ dấu câu)
   const matchingWordObjects = searchQuery.trim()
-    ? clipWords.map((w, idx) => ({ word: w, idx })).filter(item => item.word.word.toLowerCase().includes(searchQuery.toLowerCase().trim()))
+    ? clipWords
+        .map((w, idx) => ({ word: w, idx }))
+        .filter(item => {
+          const clean = item.word.word.toLowerCase().replace(/[.,!?\"']/g, '').trim();
+          const q = searchQuery.toLowerCase().trim();
+          return clean.includes(q) || item.word.word.toLowerCase().includes(q);
+        })
     : [];
   const matchingIndices = matchingWordObjects.map(item => item.idx);
+  const isAllMatchesExcluded = matchingIndices.length > 0 && matchingIndices.every(idx => excludedWordIndices.has(idx));
 
   const handleBatchReplace = () => {
     if (!replaceInput.trim() || matchingIndices.length === 0) return;
@@ -161,13 +168,18 @@ export default function OpusTranscript({
 
   const handleBatchBroll = () => {
     if (matchingWordObjects.length === 0) return;
+    const occurrences = matchingWordObjects.map(m => ({
+      start: m.word.start,
+      end: m.word.end,
+      text: m.word.word
+    }));
     const firstWord = matchingWordObjects[0].word;
-    const lastWord = matchingWordObjects[matchingWordObjects.length - 1].word;
     if (onOpenBrollPicker) {
       onOpenBrollPicker({
         start: firstWord.start,
-        end: Math.max(firstWord.start + 2, lastWord.end),
-        text: searchQuery
+        end: Math.max(firstWord.start + 2.5, firstWord.end + 2.0),
+        text: searchQuery.trim(),
+        occurrences: occurrences
       });
     }
   };
@@ -175,7 +187,11 @@ export default function OpusTranscript({
   const handleBatchDelete = () => {
     if (matchingIndices.length === 0) return;
     if (onToggleExcludeWords) {
-      onToggleExcludeWords(matchingIndices);
+      if (isAllMatchesExcluded) {
+        onToggleExcludeWords(matchingIndices, 'restore');
+      } else {
+        onToggleExcludeWords(matchingIndices, 'exclude');
+      }
     }
   };
 
@@ -215,7 +231,10 @@ export default function OpusTranscript({
         {searchQuery.trim() && matchingIndices.length > 0 && (
           <div className="p-2.5 bg-[#171926] border border-[#272b40] rounded-2xl space-y-2 animate-fade-in text-xs">
             <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
-              <span>Tác vụ hàng loạt cho <strong className="text-amber-400 font-mono font-bold">"{searchQuery}"</strong> ({matchingIndices.length} từ):</span>
+              <span>Tác vụ hàng loạt cho <strong className="text-amber-400 font-mono font-bold">"{searchQuery}"</strong> ({matchingIndices.length} vị trí):</span>
+              {isAllMatchesExcluded && (
+                <span className="text-[10px] text-rose-400 font-mono font-bold">Đã xóa khỏi video</span>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -224,32 +243,38 @@ export default function OpusTranscript({
                 value={replaceInput}
                 onChange={(e) => setReplaceInput(e.target.value)}
                 placeholder="Nhập từ mới để sửa tất cả..."
-                className="flex-1 bg-[#0d0e15] border border-[#2c3047] text-white text-xs rounded-xl px-2.5 py-1 focus:outline-none focus:border-indigo-500 font-medium"
+                className="flex-1 bg-[#0d0e15] border border-[#2c3047] text-white text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-indigo-500 font-medium"
               />
               <button
                 disabled={!replaceInput.trim()}
                 onClick={handleBatchReplace}
-                className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white rounded-xl font-bold text-xs transition active:scale-95 shadow-sm shrink-0"
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white rounded-xl font-bold text-xs transition active:scale-95 shadow-sm shrink-0"
               >
                 Sửa tất cả
               </button>
             </div>
 
-            <div className="flex items-center gap-1.5 pt-1 border-t border-[#202334]">
+            <div className="flex items-center gap-2 pt-1 border-t border-[#202334]">
               <button
                 onClick={handleBatchBroll}
-                className="flex-1 flex items-center justify-center gap-1 py-1 rounded-xl bg-[#202334] hover:bg-[#2c3047] text-amber-300 font-semibold text-[11px] transition"
+                title={`Chèn B-Roll vào ${matchingIndices.length} vị trí xuất hiện từ "${searchQuery}"`}
+                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-amber-950/60 hover:bg-amber-900 border border-amber-600/50 text-amber-300 font-bold text-[11px] transition active:scale-95 shadow-sm"
               >
-                <Film className="w-3 h-3" />
-                <span>+ B-Roll đoạn này</span>
+                <Film className="w-3.5 h-3.5" />
+                <span>🎬 + B-Roll ({matchingIndices.length} vị trí)</span>
               </button>
 
               <button
                 onClick={handleBatchDelete}
-                className="flex-1 flex items-center justify-center gap-1 py-1 rounded-xl bg-rose-950/50 hover:bg-rose-900 border border-rose-800/40 text-rose-300 font-bold text-[11px] transition"
+                title={isAllMatchesExcluded ? "Khôi phục lại các đoạn này vào video" : `Xóa bỏ và ngắt ${matchingIndices.length} đoạn chứa từ "${searchQuery}"`}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl font-bold text-[11px] transition active:scale-95 ${
+                  isAllMatchesExcluded
+                    ? 'bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-600/50 text-emerald-300 shadow-sm'
+                    : 'bg-rose-950/70 hover:bg-rose-900 border border-rose-800/60 text-rose-300 shadow-sm'
+                }`}
               >
-                <Trash2 className="w-3 h-3" />
-                <span>Xóa các đoạn này</span>
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{isAllMatchesExcluded ? `↩️ Khôi phục (${matchingIndices.length})` : `✂️ Xóa các đoạn này (${matchingIndices.length})`}</span>
               </button>
             </div>
           </div>
@@ -394,7 +419,8 @@ export default function OpusTranscript({
             const cleanText = w.word.toLowerCase().replace(/[.,!?\"']/g, '').trim();
             const isFiller = COMMON_FILLERS_LIST.includes(cleanText);
 
-            const isSearchMatch = searchQuery.trim() && cleanText.includes(searchQuery.toLowerCase().trim());
+            const q = searchQuery.toLowerCase().trim();
+            const isSearchMatch = searchQuery.trim() && (cleanText.includes(q) || w.word.toLowerCase().includes(q));
 
             const isKeyword = highlightKeywords && !isFiller && (
               w.word.length >= 4 && (
@@ -415,24 +441,29 @@ export default function OpusTranscript({
               )
             );
 
+            let wordStyleClass = 'text-slate-100 hover:bg-[#25283b] hover:text-white';
+            if (isSearchMatch) {
+              if (isExcluded) {
+                wordStyleClass = 'bg-rose-950/90 text-rose-300 line-through ring-2 ring-rose-500 font-bold opacity-80 shadow-sm';
+              } else {
+                wordStyleClass = 'bg-emerald-500 text-black font-extrabold ring-2 ring-emerald-300 shadow-md';
+              }
+            } else if (isExcluded) {
+              wordStyleClass = 'opacity-25 line-through bg-rose-950/40 text-rose-400';
+            } else if (isCurrent) {
+              wordStyleClass = 'bg-yellow-400 text-black font-extrabold shadow-md scale-105 rounded-md';
+            } else if (isFiller) {
+              wordStyleClass = 'bg-[#3b2816] text-[#f59e0b] border border-amber-500/40 font-semibold hover:bg-amber-500/30';
+            } else if (isKeyword) {
+              wordStyleClass = 'text-yellow-400 font-bold hover:bg-yellow-400/20';
+            }
+
             return (
               <span
                 key={`word-${idx}`}
                 onClick={() => onSeekWord(w.start)}
-                title={`[${w.start.toFixed(2)}s - ${w.end.toFixed(2)}s] Click: Tua video | Bôi đen để: +B-Roll, +Sound FX, Sửa cụm từ, Xóa đoạn`}
-                className={`transcript-word inline-block px-1 py-0.5 mx-0.5 rounded cursor-pointer transition-all duration-75 text-[14px] ${
-                  isSearchMatch
-                    ? 'bg-emerald-500 text-black font-extrabold ring-2 ring-emerald-300'
-                    : isExcluded
-                    ? 'opacity-25 line-through bg-rose-950/40 text-rose-400'
-                    : isCurrent
-                    ? 'bg-yellow-400 text-black font-extrabold shadow-md scale-105 rounded-md'
-                    : isFiller
-                    ? 'bg-[#3b2816] text-[#f59e0b] border border-amber-500/40 font-semibold hover:bg-amber-500/30'
-                    : isKeyword
-                    ? 'text-yellow-400 font-bold hover:bg-yellow-400/20'
-                    : 'text-slate-100 hover:bg-[#25283b] hover:text-white'
-                }`}
+                title={`[${w.start.toFixed(2)}s - ${w.end.toFixed(2)}s] ${isExcluded ? 'Đã xóa bỏ khỏi video' : 'Đang phát'} | Click: Tua video | Bôi đen: +B-Roll, Sửa, Xóa`}
+                className={`transcript-word inline-block px-1 py-0.5 mx-0.5 rounded cursor-pointer transition-all duration-75 text-[14px] ${wordStyleClass}`}
               >
                 {w.word}
               </span>
