@@ -58,6 +58,7 @@ export function drawVideoFrame(
   videoElement, 
   videoLayout = 'fill', 
   activeBrollConfig = null,
+  cropOffsetX = 0,
   targetWidth = 1080, 
   targetHeight = 1920
 ) {
@@ -109,14 +110,16 @@ export function drawVideoFrame(
     ctx.fillRect(0, 0, targetWidth, targetHeight);
     ctx.drawImage(videoElement, 0, 0, vw, vh, sx, sy, sw, sh);
   } else {
-    // Fill chế độ object-cover trong vùng boxW x boxH
+    // Fill chế độ object-cover trong vùng boxW x boxH có hỗ trợ Face Tracking Pan
     const targetAspect = boxW / boxH;
     let cropW, cropH, cropX, cropY;
 
     if (vw / vh > targetAspect) {
       cropH = vh;
       cropW = vh * targetAspect;
-      cropX = (vw - cropW) / 2;
+      const baseCenter = (vw - cropW) / 2;
+      const panShift = (cropOffsetX || 0) * vw;
+      cropX = Math.max(0, Math.min(vw - cropW, baseCenter + panShift));
       cropY = 0;
     } else {
       cropW = vw;
@@ -607,8 +610,8 @@ export function renderCompositedFrame(ctx, options = {}) {
   // 1. Xóa khung hình sạch
   ctx.clearRect(0, 0, targetWidth, targetHeight);
 
-  // 2. Vẽ Video người nói (Base Video) - Tự động co về nửa dưới/trên khi có B-Roll
-  drawVideoFrame(ctx, videoElement, videoLayout, activeBrollConfig, targetWidth, targetHeight);
+  // 2. Vẽ Video người nói (Base Video) - Tự động co về nửa dưới/trên khi có B-Roll & căn tâm theo Face Tracker
+  drawVideoFrame(ctx, videoElement, videoLayout, activeBrollConfig, options.cropOffsetX || 0, targetWidth, targetHeight);
 
   // 3. Vẽ B-Roll nếu đang trong phân đoạn B-Roll (kèm Ken Burns Slow Zoom)
   if (activeBrollMediaElement && activeBrollConfig) {

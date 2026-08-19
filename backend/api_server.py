@@ -47,6 +47,12 @@ class ProcessRequest(BaseModel):
     input_source: str
     gemini_api_key: Optional[str] = None
 
+class FaceTrackRequest(BaseModel):
+    clip_id: Optional[int] = None
+    start_time: float = 0.0
+    end_time: float = 30.0
+    manual_offset_x: float = 0.0
+
 class TranscriptCutRequest(BaseModel):
     clip_id: int
     excluded_word_indices: List[int] = []
@@ -501,6 +507,28 @@ def cut_custom_clip_by_transcript(req: TranscriptCutRequest):
 SOUNDS_DIR = BASE_DIR / "backend" / "assets" / "sounds"
 if SOUNDS_DIR.exists():
     app.mount("/assets/sounds", StaticFiles(directory=str(SOUNDS_DIR)), name="sounds")
+
+@app.post("/api/track-face")
+def track_face_endpoint(req: FaceTrackRequest):
+    """
+    🎯 PHIÊN 7: Quét tọa độ khuôn mặt người nói và tính toán vị trí crop 9:16
+    """
+    if not RESULTS_FILE.exists():
+        raise HTTPException(status_code=404, detail="Chưa có dữ liệu video")
+        
+    with open(RESULTS_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+        
+    video_path = data["video_metadata"]["video_path"]
+    from backend.face_tracker import SmartFaceTracker
+    tracker = SmartFaceTracker()
+    result = tracker.analyze_video_crop(
+        video_path=video_path,
+        start_time=req.start_time,
+        end_time=req.end_time,
+        manual_offset_x=req.manual_offset_x
+    )
+    return result
 
 # Mount static React Frontend build directly
 DIST_DIR = BASE_DIR / "frontend" / "dist"
