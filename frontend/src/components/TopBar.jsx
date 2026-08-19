@@ -28,6 +28,7 @@ export default function TopBar({
   setAspectRatio, 
   onExport, 
   onExportHd,
+  onExportWysiwyg,
   onSaveProject,
   isExportingHd = false,
   videoTitle, 
@@ -258,11 +259,23 @@ export default function TopBar({
           <span>Xuất Cắt Nhanh</span>
         </button>
 
-        {/* Export Full HD 1080x1920 */}
+        {/* Export WYSIWYG 100% Matching Preview Button */}
+        {onExportWysiwyg && (
+          <button
+            onClick={onExportWysiwyg}
+            title="Ghi hình trực tiếp Canvas: Khớp 100% B-Roll kho hàng, thấy trọn khuôn mặt, thẻ tiêu đề vàng, không bị tiếng ting ting và đúng thời lượng"
+            className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-brand-600 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white text-xs font-black shadow-lg shadow-brand-600/30 transition-all active:scale-95 ring-1 ring-amber-300/40"
+          >
+            <Sparkles className="w-3.5 h-3.5 fill-current text-yellow-200 animate-pulse" />
+            <span>🎬 Xuất WYSIWYG (Khớp 100%)</span>
+          </button>
+        )}
+
+        {/* Export Full HD 1080x1920 (Backend Render) */}
         <button
           disabled={isExportingHd}
           onClick={onExportHd}
-          className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/25 transition-all active:scale-95 disabled:opacity-50"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#1c1e2b] hover:bg-[#25283a] text-slate-300 hover:text-white border border-[#2c3044] text-xs font-semibold transition-all active:scale-95 disabled:opacity-50"
         >
           {isExportingHd ? (
             <>
@@ -272,7 +285,7 @@ export default function TopBar({
           ) : (
             <>
               <Zap className="w-3.5 h-3.5 fill-current text-yellow-300" />
-              <span>Xuất 9:16 Full HD (1080x1920)</span>
+              <span>Render Backend</span>
             </>
           )}
         </button>

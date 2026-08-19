@@ -10,6 +10,7 @@ import ClipPreviewModal from './components/ClipPreviewModal';
 import BrollPickerModal from './components/BrollPickerModal';
 import SoundFxPickerModal from './components/SoundFxPickerModal';
 import AICopilotDrawer from './components/AICopilotDrawer';
+import WysiwygExportModal from './components/WysiwygExportModal';
 import { toPng } from 'html-to-image';
 import { RefreshCw } from 'lucide-react';
 
@@ -23,6 +24,7 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isExportingHd, setIsExportingHd] = useState(false);
+  const [isWysiwygModalOpen, setIsWysiwygModalOpen] = useState(false);
 
   // AI Copilot Drawer State & Selected Model (Phiên 4)
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
@@ -1284,6 +1286,7 @@ export default function App() {
             setFaceTrackerEnabled={setFaceTrackerEnabled}
             onExport={handleExport}
             onExportHd={handleExportHd}
+            onExportWysiwyg={() => setIsWysiwygModalOpen(true)}
             onSaveProject={handleSaveProject}
             isExportingHd={isExportingHd}
             videoTitle={data?.video_metadata?.title}
@@ -1485,6 +1488,24 @@ export default function App() {
         onClose={() => setIsSoundFxPickerOpen(false)}
         onSelect={handleSelectSoundFx}
         timestamp={soundFxTimestamp}
+      />
+
+      {/* 🎬 Modal Xuất Video WYSIWYG Chuẩn CapCut (Khớp 100% Preview) */}
+      <WysiwygExportModal
+        isOpen={isWysiwygModalOpen}
+        onClose={() => setIsWysiwygModalOpen(false)}
+        clip={activeClip}
+        sourceVideoUrl="http://127.0.0.1:8000/api/stream/source"
+        words={data?.transcript?.words || []}
+        customTitle={customTitle || activeClip?.title || ''}
+        titleConfig={titleConfig}
+        brandConfig={brandConfig}
+        captionConfig={captionConfig}
+        fontStyle={fontStyle}
+        textLayers={textLayers}
+        brolls={brolls}
+        skipIntervals={skipIntervals}
+        videoLayout={videoLayout}
       />
     </div>
   );
