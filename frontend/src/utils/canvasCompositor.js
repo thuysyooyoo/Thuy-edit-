@@ -59,6 +59,7 @@ export function drawVideoFrame(
   videoLayout = 'fill', 
   activeBrollConfig = null,
   cropOffsetX = 0,
+  zoomScale = 1.0,
   targetWidth = 1080, 
   targetHeight = 1920
 ) {
@@ -110,25 +111,32 @@ export function drawVideoFrame(
     ctx.fillRect(0, 0, targetWidth, targetHeight);
     ctx.drawImage(videoElement, 0, 0, vw, vh, sx, sy, sw, sh);
   } else {
-    // Fill chế độ object-cover trong vùng boxW x boxH có hỗ trợ Face Tracking Pan
+    // Fill chế độ object-cover trong vùng boxW x boxH có hỗ trợ Face Tracking Pan & Dynamic Micro-Zoom
     const targetAspect = boxW / boxH;
-    let cropW, cropH, cropX, cropY;
+    let baseCropW, baseCropH, cropX, cropY;
 
     if (vw / vh > targetAspect) {
-      cropH = vh;
-      cropW = vh * targetAspect;
-      const baseCenter = (vw - cropW) / 2;
+      baseCropH = vh;
+      baseCropW = vh * targetAspect;
+      const baseCenter = (vw - baseCropW) / 2;
       const panShift = (cropOffsetX || 0) * vw;
-      cropX = Math.max(0, Math.min(vw - cropW, baseCenter + panShift));
+      cropX = Math.max(0, Math.min(vw - baseCropW, baseCenter + panShift));
       cropY = 0;
     } else {
-      cropW = vw;
-      cropH = vw / targetAspect;
+      baseCropW = vw;
+      baseCropH = vw / targetAspect;
       cropX = 0;
-      cropY = (vh - cropH) / 2;
+      cropY = (vh - baseCropH) / 2;
     }
 
-    ctx.drawImage(videoElement, cropX, cropY, cropW, cropH, boxX, boxY, boxW, boxH);
+    // Áp dụng tỉ lệ Dynamic Micro-Zoom (1.0x -> 1.05x)
+    const z = Math.max(1.0, zoomScale || 1.0);
+    const cropW = baseCropW / z;
+    const cropH = baseCropH / z;
+    const finalCropX = cropX + (baseCropW - cropW) / 2;
+    const finalCropY = cropY + (baseCropH - cropH) / 2;
+
+    ctx.drawImage(videoElement, finalCropX, finalCropY, cropW, cropH, boxX, boxY, boxW, boxH);
   }
 }
 
@@ -610,8 +618,8 @@ export function renderCompositedFrame(ctx, options = {}) {
   // 1. Xóa khung hình sạch
   ctx.clearRect(0, 0, targetWidth, targetHeight);
 
-  // 2. Vẽ Video người nói (Base Video) - Tự động co về nửa dưới/trên khi có B-Roll & căn tâm theo Face Tracker
-  drawVideoFrame(ctx, videoElement, videoLayout, activeBrollConfig, options.cropOffsetX || 0, targetWidth, targetHeight);
+  // 2. Vẽ Video người nói (Base Video) - Tự động co về nửa dưới/trên khi có B-Roll & căn tâm Face Tracker + Dynamic Micro-Zoom
+  drawVideoFrame(ctx, videoElement, videoLayout, activeBrollConfig, options.cropOffsetX || 0, options.zoomScale || 1.0, targetWidth, targetHeight);
 
   // 3. Vẽ B-Roll nếu đang trong phân đoạn B-Roll (kèm Ken Burns Slow Zoom)
   if (activeBrollMediaElement && activeBrollConfig) {

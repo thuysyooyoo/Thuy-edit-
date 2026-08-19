@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { renderCompositedFrame } from '../utils/canvasCompositor';
+import { calculateMicroZoomFactor } from '../utils/microZoomEngine';
 import { Film, CheckCircle2, AlertCircle, X, Download, Loader2, Sparkles } from 'lucide-react';
 
 export default function WysiwygExportModal({
@@ -360,12 +361,16 @@ export default function WysiwygExportModal({
             )
           );
 
+          // 🔍 Tính toán Dynamic Micro-Zoom (3-5%) theo nhịp lời thoại
+          const microZoom = calculateMicroZoomFactor(currT, clipStart, clip?.scenes || [], true);
+
           // 🎨 Vẽ toàn bộ frame độ phân giải 1080x1920
           renderCompositedFrame(ctx, {
             videoElement: video,
             videoLayout,
             activeBrollMediaElement: activeBrollEl,
             activeBrollConfig: activeBroll,
+            zoomScale: microZoom.scale,
             titleConfig,
             customTitle: customTitle || clip?.title || '',
             isTitleVisible: isTitleVis,
