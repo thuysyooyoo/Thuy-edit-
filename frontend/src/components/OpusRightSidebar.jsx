@@ -143,41 +143,80 @@ export default function OpusRightSidebar({
     return [
       {
         id: 'tmpl_tiktok',
-        name: 'Mẫu TikTok Viral (Neon)',
-        desc: 'Font Montserrat Black, Subtitle Neon Green, Hook Pill White',
+        name: 'Mẫu TikTok Viral (MrBeast Neon)',
+        desc: 'Font Montserrat Black, Pop Word Xanh Lá, Tiêu đề Vàng Gradient',
         createdAt: 'Mẫu sẵn có',
         preset: {
-          fontStyle: { fontFamily: 'Montserrat', fontSize: 40, textColor: '#ffffff', strokeWidth: 8, strokeColor: '#000000', highlightColor: '#04f827' },
+          fontStyle: { fontFamily: 'Montserrat', fontSize: 40, textColor: '#ffffff', strokeWidth: 8, strokeColor: '#000000', highlightColor: '#22c55e', effect: 'pop' },
           captionPreset: 'Karaoke Neon Green',
           captionEffect: 'pop',
-          titleConfig: { visible: true, style: 'pill_white' },
+          titleConfig: { visible: true, style: 'gradient_gold' },
           brandConfig: { showLogo: true, logoText: 'OPUS STUDIO', logoSize: 65, logoOpacity: 90 }
         }
       },
       {
-        id: 'tmpl_mrbeast',
-        name: 'Mẫu MrBeast Giật Gân',
-        desc: 'Font Impact, Chữ Vàng Highlight Trắng, Hook Yellow Impact',
+        id: 'tmpl_hormozi',
+        name: 'Mẫu Doanh Nhân (Alex Hormozi)',
+        desc: 'Font Bebas Neue, Pill-Box Vàng Chữ Đen, Tiêu đề Pill White',
         createdAt: 'Mẫu sẵn có',
         preset: {
-          fontStyle: { fontFamily: 'Impact', fontSize: 46, textColor: '#FFFD03', strokeWidth: 10, strokeColor: '#000000', highlightColor: '#ffffff' },
-          captionPreset: 'MrBeast Impact',
-          captionEffect: 'wave',
+          fontStyle: { fontFamily: 'Bebas Neue', fontSize: 44, textColor: '#ffffff', strokeWidth: 0, strokeColor: '#000000', highlightColor: '#000000', effect: 'pill', pillBgColor: '#facc15', pillTextColor: '#000000' },
+          captionPreset: 'Alex Hormozi Pill-Box',
+          captionEffect: 'pill',
+          titleConfig: { visible: true, style: 'pill_white' },
+          brandConfig: { showLogo: true, logoText: 'BIZ HUB', logoSize: 70, logoOpacity: 95 }
+        }
+      },
+      {
+        id: 'tmpl_cyberpunk',
+        name: 'Mẫu Công Nghệ (Cyber Neon Glow)',
+        desc: 'Font Kanit, Phát sáng Cyan Neon, Tiêu đề Neon Cyber',
+        createdAt: 'Mẫu sẵn có',
+        preset: {
+          fontStyle: { fontFamily: 'Kanit', fontSize: 38, textColor: '#ffffff', strokeWidth: 6, strokeColor: '#000000', highlightColor: '#00f0ff', effect: 'glow', glowColor: '#00f0ff' },
+          captionPreset: 'Cyberpunk Neon Glow',
+          captionEffect: 'glow',
+          titleConfig: { visible: true, style: 'neon_cyber' },
+          brandConfig: { showLogo: true, logoText: 'CYBER LAB', logoSize: 65, logoOpacity: 90 }
+        }
+      },
+      {
+        id: 'tmpl_red_warning',
+        name: 'Mẫu Cảnh Báo (Red Warning Impact)',
+        desc: 'Font Anton, Chữ Đỏ Rực Cảnh Báo, Tiêu đề Yellow Impact',
+        createdAt: 'Mẫu sẵn có',
+        preset: {
+          fontStyle: { fontFamily: 'Anton', fontSize: 42, textColor: '#ffffff', strokeWidth: 9, strokeColor: '#000000', highlightColor: '#ef4444', effect: 'pop' },
+          captionPreset: 'Red Impact Warning',
+          captionEffect: 'pop',
           titleConfig: { visible: true, style: 'yellow_impact' },
-          brandConfig: { showLogo: true, logoText: 'VIRAL HUB', logoSize: 70, logoOpacity: 95 }
+          brandConfig: { showLogo: true, logoText: 'ALERT 24/7', logoSize: 65, logoOpacity: 95 }
         }
       },
       {
         id: 'tmpl_podcast',
-        name: 'Mẫu Podcast Thanh Lịch Clean',
-        desc: 'Font Inter Tight 36px, Viền Mỏng, Hook Minimalist Clean',
+        name: 'Mẫu Podcast Clean Thanh Lịch',
+        desc: 'Font Inter 36px, Chữ Xanh Dương Tối Giản, Tiêu đề Pill White',
         createdAt: 'Mẫu sẵn có',
         preset: {
-          fontStyle: { fontFamily: 'Inter', fontSize: 36, textColor: '#ffffff', strokeWidth: 4, strokeColor: '#000000', highlightColor: '#04f827' },
-          captionPreset: 'Minimalist Clean',
-          captionEffect: 'glow',
-          titleConfig: { visible: true, style: 'minimal' },
-          brandConfig: { showLogo: true, logoText: 'PODCAST TALK', logoSize: 60, logoOpacity: 85 }
+          fontStyle: { fontFamily: 'Inter', fontSize: 36, textColor: '#f8fafc', strokeWidth: 4, strokeColor: '#000000', highlightColor: '#38bdf8', effect: 'pop' },
+          captionPreset: 'Minimalist Clean White',
+          captionEffect: 'pop',
+          titleConfig: { visible: true, style: 'pill_white' },
+          brandConfig: { showLogo: true, logoText: 'TALK SHOW', logoSize: 60, logoOpacity: 85 }
+        }
+      },
+      {
+        id: 'tmpl_vietnam',
+        name: 'Mẫu Sáng Tạo Việt (Be Vietnam Pro)',
+        desc: 'Font Be Vietnam Pro, Viền Đen Chữ Vàng, Tiêu đề Gradient Gold',
+        createdAt: 'Mẫu sẵn có',
+        preset: {
+          fontStyle: { fontFamily: 'Be Vietnam Pro', fontSize: 38, textColor: '#ffffff', strokeWidth: 8, strokeColor: '#000000', highlightColor: '#fde047', effect: 'pop' },
+          captionPreset: 'TikTok Classic Tiếng Việt',
+          captionEffect: 'pop',
+          titleConfig: { visible: true, style: 'gradient_gold' },
+          brandConfig: { showLogo: true, logoText: 'VIETNAM VIRAL', logoSize: 65, logoOpacity: 90 }
         }
       }
     ];
@@ -324,6 +363,8 @@ export default function OpusRightSidebar({
 
   const transitionsList = [
     { id: 'zoom_in', name: 'Zoom In Punch', desc: 'Phóng to đột ngột tạo điểm nhấn thị giác mạnh mẽ' },
+    { id: 'circle_wipe', name: 'Circle Wipe (SupoClip)', desc: 'Vòng tròn mở rộng quét chuyển cảnh mượt mà' },
+    { id: 'flat_slide', name: 'Flat Slide (SupoClip)', desc: 'Trượt thanh phẳng ngang hiện đại' },
     { id: 'flash_white', name: 'Flash White', desc: 'Chớp sáng điện ảnh lôi cuốn và mượt mà' },
     { id: 'glitch', name: 'Glitch Cyber', desc: 'Hiệu ứng nhiễu sóng số phong cách hiện đại' },
     { id: 'fade_black', name: 'Fade Black', desc: 'Mờ dần vào nền đen điện ảnh tinh tế' },
