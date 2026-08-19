@@ -370,7 +370,7 @@ async def convert_webm_to_mp4(
     from backend.config import FFMPEG_PATH
     import subprocess
     
-    # Chuyển đổi WebM sang MP4 (ultrafast H.264 + AAC 192k)
+    # Chuyển đổi WebM sang MP4 (ultrafast H.264 + AAC 192k) với cờ -shortest để đảm bảo khớp chính xác thời lượng video
     cmd = [
         FFMPEG_PATH, "-y",
         "-i", str(temp_webm_path),
@@ -381,6 +381,7 @@ async def convert_webm_to_mp4(
         "-b:a", "192k",
         "-pix_fmt", "yuv420p",
         "-movflags", "+faststart",
+        "-shortest",
         str(out_mp4_path)
     ]
     

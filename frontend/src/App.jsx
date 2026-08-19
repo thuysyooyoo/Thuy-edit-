@@ -1505,6 +1505,9 @@ export default function App() {
         textLayers={textLayers}
         brolls={brolls}
         skipIntervals={skipIntervals}
+        soundFxMarkers={soundFxMarkers}
+        selectedBgm={selectedBgm}
+        bgmVolume={bgmVolume}
         videoLayout={videoLayout}
       />
     </div>

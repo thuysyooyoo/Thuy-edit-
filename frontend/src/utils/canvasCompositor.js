@@ -264,9 +264,9 @@ export function drawTitleCard(ctx, titleConfig, customTitle, targetWidth = 1080,
   ctx.save();
   ctx.translate(posX, posY);
 
-  // Font setup
+  // Font setup with full Vietnamese glyph support
   const fontSize = Math.round(36 * scale * 1.1);
-  ctx.font = `900 ${fontSize}px "Montserrat", "Arial", sans-serif`;
+  ctx.font = `900 ${fontSize}px "Montserrat", "Be Vietnam Pro", "Inter", "Segoe UI", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
@@ -418,7 +418,7 @@ export function drawKaraokeCaptions(ctx, words = [], captionConfig = {}, fontSty
   ctx.save();
   ctx.translate(posX, posY);
 
-  ctx.font = `900 ${baseFontSize}px "${fontFamily}", "Arial", sans-serif`;
+  ctx.font = `900 ${baseFontSize}px "${fontFamily}", "Be Vietnam Pro", "Montserrat", "Segoe UI", sans-serif`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
 

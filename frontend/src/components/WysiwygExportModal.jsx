@@ -16,6 +16,9 @@ export default function WysiwygExportModal({
   textLayers = [],
   brolls = [],
   skipIntervals = [],
+  soundFxMarkers = [],
+  selectedBgm = 'none',
+  bgmVolume = 25,
   videoLayout = 'fill'
 }) {
   const [status, setStatus] = useState('idle'); // idle | preparing | recording | converting | completed | error
@@ -33,6 +36,8 @@ export default function WysiwygExportModal({
   const isCancelledRef = useRef(false);
   const loadedMediaRef = useRef(new Map());
   const loadedLogoRef = useRef(null);
+  const audioCtxRef = useRef(null);
+  const bgmAudioRef = useRef(null);
 
   // Tính toán thời lượng ước tính sau khi cắt
   const clipStart = clip?.start_time ?? 0;
@@ -77,12 +82,28 @@ export default function WysiwygExportModal({
       hiddenVideoRef.current.pause();
       hiddenVideoRef.current.src = '';
     }
+    if (bgmAudioRef.current) {
+      bgmAudioRef.current.pause();
+      bgmAudioRef.current.src = '';
+      bgmAudioRef.current = null;
+    }
+    if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+      try {
+        audioCtxRef.current.close();
+      } catch (e) {}
+      audioCtxRef.current = null;
+    }
   };
 
   // Preload toàn bộ ảnh/video B-Roll và Logo vào bộ nhớ
   const preloadMedia = async () => {
     loadedMediaRef.current.clear();
     loadedLogoRef.current = null;
+
+    // Đợi Web Fonts nạp đầy đủ (Vietnamese glyphs)
+    if (document.fonts && document.fonts.ready) {
+      await document.fonts.ready;
+    }
 
     // Preload Logo
     if (brandConfig?.showLogo && brandConfig?.logoUrl) {
@@ -91,9 +112,20 @@ export default function WysiwygExportModal({
       img.src = brandConfig.logoUrl;
       await new Promise(resolve => {
         img.onload = resolve;
-        img.onerror = resolve;
+        img.onerror = () => {
+          // Fallback không có crossOrigin nếu URL là local hoặc data URI
+          const fallbackImg = new Image();
+          fallbackImg.src = brandConfig.logoUrl;
+          fallbackImg.onload = () => {
+            loadedLogoRef.current = fallbackImg;
+            resolve();
+          };
+          fallbackImg.onerror = resolve;
+        };
       });
-      loadedLogoRef.current = img;
+      if (img.complete && img.naturalWidth > 0) {
+        loadedLogoRef.current = img;
+      }
     }
 
     // Preload B-Rolls
@@ -115,10 +147,20 @@ export default function WysiwygExportModal({
         img.crossOrigin = 'anonymous';
         img.src = src;
         await new Promise(resolve => {
-          img.onload = resolve;
-          img.onerror = resolve;
+          img.onload = () => {
+            loadedMediaRef.current.set(b.id, img);
+            resolve();
+          };
+          img.onerror = () => {
+            const fallbackImg = new Image();
+            fallbackImg.src = src;
+            fallbackImg.onload = () => {
+              loadedMediaRef.current.set(b.id, fallbackImg);
+              resolve();
+            };
+            fallbackImg.onerror = resolve;
+          };
         });
-        loadedMediaRef.current.set(b.id, img);
       }
     }
   };
@@ -127,7 +169,7 @@ export default function WysiwygExportModal({
     try {
       setStatus('preparing');
       setProgress(0);
-      setStatusMessage('Đang nạp video nguồn & tài nguyên B-Roll...');
+      setStatusMessage('Đang nạp video nguồn, font chữ & tài nguyên B-Roll...');
       setErrorMessage('');
 
       await preloadMedia();
@@ -147,7 +189,7 @@ export default function WysiwygExportModal({
 
       // Đặt nguồn video
       video.src = sourceVideoUrl;
-      video.muted = false; // Thu trực tiếp âm thanh gốc
+      video.crossOrigin = 'anonymous';
 
       await new Promise((resolve, reject) => {
         video.onloadeddata = resolve;
@@ -165,23 +207,44 @@ export default function WysiwygExportModal({
       setStatus('recording');
       setStatusMessage('Đang ghi hình trực tiếp từng khung hình chuẩn 1080x1920...');
 
-      // Khởi tạo MediaStream kết hợp Video từ Canvas và Audio từ Video Element
-      const canvasStream = canvas.captureStream(60); // 60 FPS
-      let combinedStream;
+      // 🎧 Thiết lập Web Audio API để thu âm thanh trực tiếp (Không dính PTS sai lệch của file gốc)
+      const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+      const audioCtx = new AudioCtxClass();
+      audioCtxRef.current = audioCtx;
 
-      try {
-        const videoAudioStream = video.captureStream ? video.captureStream() : video.mozCaptureStream ? video.mozCaptureStream() : null;
-        const audioTracks = videoAudioStream ? videoAudioStream.getAudioTracks() : [];
-        
-        if (audioTracks.length > 0) {
-          combinedStream = new MediaStream([canvasStream.getVideoTracks()[0], audioTracks[0]]);
-        } else {
-          combinedStream = canvasStream;
+      const sourceNode = audioCtx.createMediaElementSource(video);
+      const destNode = audioCtx.createMediaStreamDestination();
+      
+      // Nối video audio vào destNode (kèm master gain)
+      const masterGain = audioCtx.createGain();
+      masterGain.gain.value = 1.0;
+      sourceNode.connect(masterGain);
+      masterGain.connect(destNode);
+
+      // Nối BGM nếu có
+      if (selectedBgm && selectedBgm !== 'none') {
+        try {
+          const bgm = new Audio(`/assets/sounds/bgm/${selectedBgm}.mp3`);
+          bgm.crossOrigin = 'anonymous';
+          bgm.loop = true;
+          const bgmSource = audioCtx.createMediaElementSource(bgm);
+          const bgmGain = audioCtx.createGain();
+          bgmGain.gain.value = ((bgmVolume || 25) / 100) * 0.35;
+          bgmSource.connect(bgmGain);
+          bgmGain.connect(destNode);
+          bgm.play().catch(() => {});
+          bgmAudioRef.current = bgm;
+        } catch (e) {
+          console.warn("BGM initialization notice:", e);
         }
-      } catch (e) {
-        console.warn('Lỗi ghép audio track, sử dụng canvas stream:', e);
-        combinedStream = canvasStream;
       }
+
+      // Khởi tạo MediaStream kết hợp Video từ Canvas và Audio từ Web Audio API Destination
+      const canvasStream = canvas.captureStream(60); // 60 FPS
+      const combinedStream = new MediaStream([
+        canvasStream.getVideoTracks()[0],
+        destNode.stream.getAudioTracks()[0]
+      ]);
 
       // Khởi tạo MediaRecorder
       let mimeType = 'video/webm;codecs=vp9,opus';
@@ -217,6 +280,7 @@ export default function WysiwygExportModal({
 
       // Vòng lặp Render Khung Hình
       let isSeekingSkip = false;
+      const playedFxSet = new Set();
 
       const renderLoop = () => {
         if (isCancelledRef.current) return;
@@ -226,6 +290,7 @@ export default function WysiwygExportModal({
         // Kiểm tra kết thúc clip
         if (currT >= clipEnd || video.ended) {
           video.pause();
+          if (bgmAudioRef.current) bgmAudioRef.current.pause();
           if (recorder.state !== 'inactive') {
             recorder.stop();
           }
@@ -253,20 +318,49 @@ export default function WysiwygExportModal({
         }
 
         if (!isSeekingSkip) {
-          // Xác định B-Roll đang active
+          // 🔊 Phát Sound FX nếu tới mốc thời gian
+          if (soundFxMarkers && soundFxMarkers.length > 0) {
+            for (const fx of soundFxMarkers) {
+              const fxTime = fx.time >= clipStart ? fx.time : (clipStart + fx.time);
+              const fxKey = fx.id || `${fx.sound}_${fxTime}`;
+              if (Math.abs(currT - fxTime) <= 0.08 && !playedFxSet.has(fxKey)) {
+                playedFxSet.add(fxKey);
+                try {
+                  const fxAudio = new Audio(fx.fileUrl || `/assets/sounds/${fx.sound || 'whoosh'}.mp3`);
+                  fxAudio.crossOrigin = 'anonymous';
+                  const fxSrc = audioCtx.createMediaElementSource(fxAudio);
+                  const fxGain = audioCtx.createGain();
+                  fxGain.gain.value = 0.7;
+                  fxSrc.connect(fxGain);
+                  fxGain.connect(destNode);
+                  fxAudio.play().catch(() => {});
+                } catch (e) {}
+              }
+            }
+          }
+
+          // 🖼️ Xác định B-Roll đang active (Khớp cả mốc thời gian tuyệt đối và tương đối!)
           const activeBroll = (brolls || []).find(b => {
+            const bStart = b.start;
             const bEnd = b.end || (b.start + (b.duration || 4));
-            return currT >= b.start && currT <= bEnd;
+            const isAbsMatch = currT >= (bStart - 0.1) && currT <= (bEnd + 0.1);
+            const relTime = currT - clipStart;
+            const isRelMatch = relTime >= (bStart - 0.1) && relTime <= (bEnd + 0.1);
+            return isAbsMatch || isRelMatch;
           });
 
           const activeBrollEl = activeBroll ? loadedMediaRef.current.get(activeBroll.id) : null;
 
-          // Kiểm tra hiển thị Tiêu đề Hook
-          const tStart = clipStart + (titleConfig?.startTime ?? 0);
-          const tEnd = tStart + (titleConfig?.duration ?? 6);
-          const isTitleVis = titleConfig?.visible !== false && currT >= tStart && currT <= tEnd;
+          // 🏷️ Kiểm tra hiển thị Tiêu đề Hook
+          const relT = currT >= clipStart ? (currT - clipStart) : currT;
+          const isTitleVis = titleConfig?.visible !== false && (
+            titleConfig?.startTime === undefined || (
+              relT >= ((titleConfig.startTime ?? 0) - 0.05) &&
+              relT <= ((titleConfig.startTime ?? 0) + (titleConfig.duration ?? 6) + 0.05)
+            )
+          );
 
-          // Vẽ toàn bộ frame
+          // 🎨 Vẽ toàn bộ frame độ phân giải 1080x1920
           renderCompositedFrame(ctx, {
             videoElement: video,
             videoLayout,
