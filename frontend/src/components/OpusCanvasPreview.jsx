@@ -21,6 +21,7 @@ import {
   Type,
   Maximize2
 } from 'lucide-react';
+import { getEmojiForWord } from '../utils/emojiEngine';
 
 export default function OpusCanvasPreview({ 
   videoRef, 
@@ -997,26 +998,57 @@ export default function OpusCanvasPreview({
               >
                 {activePhrase.slice(0, 5).map((w, idx) => {
                   const isCurrent = currentTime >= w.start && currentTime <= w.end;
+                  const wordEmoji = (aiEmoji !== false && fontStyle?.aiEmoji !== false) ? (w.emoji || getEmojiForWord(w.word)) : null;
+                  const currentEffect = fontStyle?.effect || captionEffect || 'pop';
                   
                   let displayWord = w.word;
                   if (autoCensor && ['rủi', 'chết', 'nguy'].includes(w.word.toLowerCase())) {
                     displayWord = '***';
                   }
 
+                  if (isCurrent && currentEffect === 'pill') {
+                    return (
+                      <span key={idx} className="relative inline-block mx-1">
+                        {wordEmoji && (
+                          <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-lg drop-shadow-md animate-bounce">
+                            {wordEmoji}
+                          </span>
+                        )}
+                        <span 
+                          style={{
+                            backgroundColor: fontStyle?.pillBgColor || '#facc15',
+                            color: fontStyle?.pillTextColor || '#000000',
+                            WebkitTextStroke: '0px transparent',
+                            textShadow: 'none'
+                          }}
+                          className="px-2.5 py-0.5 rounded-lg font-black inline-block shadow-lg scale-105"
+                        >
+                          {displayWord}
+                        </span>
+                      </span>
+                    );
+                  }
+
                   return (
-                    <span
-                      key={idx}
-                      style={{
-                        color: isCurrent && hasHighlight ? highlightColor : textColor
-                      }}
-                      className={`mx-1 inline-block transition-all ${
-                        isCurrent ? 'scale-110 drop-shadow-[0_0_10px_rgba(255,255,255,0.8)] font-black' : ''
-                      } ${
-                        captionEffect === 'pop' && isCurrent ? 'animate-bounce' :
-                        captionEffect === 'glow' && isCurrent ? 'drop-shadow-[0_0_15px_rgba(4,248,39,1)]' : ''
-                      }`}
-                    >
-                      {displayWord}
+                    <span key={idx} className="relative inline-block mx-1">
+                      {isCurrent && wordEmoji && (
+                        <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-lg drop-shadow-md animate-bounce">
+                          {wordEmoji}
+                        </span>
+                      )}
+                      <span
+                        style={{
+                          color: isCurrent && hasHighlight ? highlightColor : textColor
+                        }}
+                        className={`inline-block transition-all ${
+                          isCurrent ? 'scale-115 drop-shadow-[0_0_12px_rgba(255,255,255,0.9)] font-black' : ''
+                        } ${
+                          currentEffect === 'pop' && isCurrent ? 'animate-bounce' :
+                          currentEffect === 'glow' && isCurrent ? 'drop-shadow-[0_0_20px_rgba(34,197,94,1)]' : ''
+                        }`}
+                      >
+                        {displayWord}
+                      </span>
                     </span>
                   );
                 })}

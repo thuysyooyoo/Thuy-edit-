@@ -41,6 +41,7 @@ import {
   FileCode,
   FolderOpen
 } from 'lucide-react';
+import { VIRAL_FONTS } from '../utils/captionStyles';
 
 export default function OpusRightSidebar({
   activeTab = 'ai_enhance',
@@ -285,33 +286,39 @@ export default function OpusRightSidebar({
   const captionPresetsList = [
     {
       id: 'karaoke_neon',
-      name: 'Karaoke Neon Green',
-      desc: 'Montserrat Black, viền 8px, Highlight Xanh Neon',
-      style: { fontFamily: 'Montserrat', fontSize: 40, fontWeight: 'Black', textColor: '#ffffff', strokeWidth: 8, strokeColor: '#000000', highlightColor: '#04f827', isUppercase: true, hasShadow: true, shadowColor: '#000000' }
+      name: 'Karaoke Neon Green (MrBeast)',
+      desc: 'Montserrat Black, viền 8px, Pop Word Xanh Lá Viral',
+      style: { fontFamily: 'Montserrat', fontSize: 40, fontWeight: 'Black', textColor: '#ffffff', strokeWidth: 8, strokeColor: '#000000', highlightColor: '#22c55e', effect: 'pop', isUppercase: true, hasShadow: true, shadowColor: '#000000' }
     },
     {
-      id: 'tiktok_bold',
-      name: 'TikTok Bold White',
-      desc: 'Arial Black, viền 10px, Highlight Vàng Sáng',
-      style: { fontFamily: 'Arial', fontSize: 42, fontWeight: 'Black', textColor: '#ffffff', strokeWidth: 10, strokeColor: '#000000', highlightColor: '#FFFD03', isUppercase: true, hasShadow: true, shadowColor: '#000000' }
+      id: 'hormozi_pill',
+      name: 'Alex Hormozi Pill-Box',
+      desc: 'Bebas Neue, Hộp Pill Vàng Chữ Đen nổi bật',
+      style: { fontFamily: 'Bebas Neue', fontSize: 44, fontWeight: 'Black', textColor: '#ffffff', strokeWidth: 0, strokeColor: '#000000', highlightColor: '#000000', effect: 'pill', pillBgColor: '#facc15', pillTextColor: '#000000', isUppercase: true, hasShadow: true, shadowColor: '#000000' }
     },
     {
-      id: 'mrbeast_yellow',
-      name: 'MrBeast Impact',
-      desc: 'Impact 46px, Đổ bóng dày, Chữ in hoa',
-      style: { fontFamily: 'Impact', fontSize: 46, fontWeight: 'Black', textColor: '#FFFD03', strokeWidth: 10, strokeColor: '#000000', highlightColor: '#ffffff', isUppercase: true, hasShadow: true, shadowColor: '#000000' }
+      id: 'cyberpunk_glow',
+      name: 'Cyberpunk Neon Glow',
+      desc: 'Kanit, Phát sáng Cyan Neon rực rỡ',
+      style: { fontFamily: 'Kanit', fontSize: 38, fontWeight: 'Black', textColor: '#ffffff', strokeWidth: 6, strokeColor: '#000000', highlightColor: '#00f0ff', effect: 'glow', glowColor: '#00f0ff', isUppercase: true, hasShadow: true, shadowColor: '#00f0ff' }
     },
     {
-      id: 'cyberpunk_pink',
-      name: 'Cyberpunk Neon Pink',
-      desc: 'Montserrat 42px, Highlight Hồng Neon',
-      style: { fontFamily: 'Montserrat', fontSize: 42, fontWeight: 'Black', textColor: '#ffffff', strokeWidth: 8, strokeColor: '#000000', highlightColor: '#FF007A', isUppercase: true, hasShadow: true, shadowColor: '#FF007A' }
+      id: 'red_warning',
+      name: 'Red Impact Warning',
+      desc: 'Anton, Đỏ rực cảnh báo nguy hiểm',
+      style: { fontFamily: 'Anton', fontSize: 42, fontWeight: 'Black', textColor: '#ffffff', strokeWidth: 9, strokeColor: '#000000', highlightColor: '#ef4444', effect: 'pop', isUppercase: true, hasShadow: true, shadowColor: '#000000' }
+    },
+    {
+      id: 'tiktok_vietnam',
+      name: 'TikTok Classic Tiếng Việt',
+      desc: 'Be Vietnam Pro, Viền đen chữ vàng chuẩn nét',
+      style: { fontFamily: 'Be Vietnam Pro', fontSize: 38, fontWeight: 'Black', textColor: '#ffffff', strokeWidth: 8, strokeColor: '#000000', highlightColor: '#fde047', effect: 'pop', isUppercase: true, hasShadow: true, shadowColor: '#000000' }
     },
     {
       id: 'minimalist_clean',
-      name: 'Minimalist Clean',
-      desc: 'Inter Tight 36px, Viền mỏng thanh lịch',
-      style: { fontFamily: 'Inter', fontSize: 36, fontWeight: 'SemiBold', textColor: '#ffffff', strokeWidth: 4, strokeColor: '#000000', highlightColor: '#04f827', isUppercase: false, hasShadow: false }
+      name: 'Minimalist Clean White',
+      desc: 'Inter, Tối giản thanh lịch hiện đại',
+      style: { fontFamily: 'Inter', fontSize: 36, fontWeight: 'SemiBold', textColor: '#f8fafc', strokeWidth: 4, strokeColor: '#000000', highlightColor: '#38bdf8', effect: 'pop', isUppercase: false, hasShadow: false }
     }
   ];
 
@@ -699,17 +706,17 @@ export default function OpusRightSidebar({
                 </div>
 
                 <div className="space-y-1">
+                  <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Kho 22+ Fonts Viral</label>
                   <select
                     value={fontFamily}
                     onChange={(e) => updateFont('fontFamily', e.target.value)}
                     className="w-full bg-[#181a26] border border-[#272b3f] text-white rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-brand-500"
                   >
-                    <option value="Montserrat">Montserrat</option>
-                    <option value="Arial">Arial Black</option>
-                    <option value="Inter">Inter Tight</option>
-                    <option value="Impact">Impact</option>
-                    <option value="Anton">Anton</option>
-                    <option value="Bebas Neue">Bebas Neue</option>
+                    {VIRAL_FONTS.map(f => (
+                      <option key={f.id} value={f.id}>
+                        {f.name} ({f.desc})
+                      </option>
+                    ))}
                   </select>
                 </div>
 

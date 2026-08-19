@@ -9,6 +9,8 @@
  * - Nhãn dán chữ (Text Layers)
  */
 
+import { getEmojiForWord } from './emojiEngine';
+
 // Helper vẽ hình chữ nhật bo góc (Rounded Rectangle)
 export function drawRoundedRect(ctx, x, y, width, height, radius) {
   const r = Math.min(radius, width / 2, height / 2);
@@ -389,9 +391,17 @@ export function drawBrandLogo(ctx, brandConfig, logoImgElement, targetWidth = 10
 }
 
 /**
- * 5. Vẽ Phụ Đề Karaoke Chuyển Động (Dynamic Karaoke Captions)
+ * 5. Vẽ Phụ Đề Karaoke Chuyển Động (Dynamic Karaoke Captions: Pop, Pill-Box, Glow, Emojis)
  */
-export function drawKaraokeCaptions(ctx, words = [], captionConfig = {}, fontStyle = {}, currentTime = 0, targetWidth = 1080, targetHeight = 1920) {
+export function drawKaraokeCaptions(
+  ctx, 
+  words = [], 
+  captionConfig = {}, 
+  fontStyle = {}, 
+  currentTime = 0, 
+  targetWidth = 1080, 
+  targetHeight = 1920
+) {
   if (!words || words.length === 0 || captionConfig.visible === false) return;
 
   // Tìm cụm từ (phrase) tương ứng với thời gian hiện tại
@@ -413,12 +423,15 @@ export function drawKaraokeCaptions(ctx, words = [], captionConfig = {}, fontSty
   const fontFamily = fontStyle.fontFamily || 'Montserrat';
   const baseFontSize = (fontStyle.fontSize || 40) * 1.9 * scale;
   const textColor = fontStyle.textColor || '#ffffff';
+  const highlightColor = fontStyle.highlightColor || '#22c55e';
+  const effect = fontStyle.effect || captionConfig.effect || 'pop'; // 'pop' | 'pill' | 'glow'
   const isUppercase = fontStyle.uppercase !== false;
+  const showEmoji = captionConfig.aiEmoji !== false && fontStyle.aiEmoji !== false;
 
   ctx.save();
   ctx.translate(posX, posY);
 
-  ctx.font = `900 ${baseFontSize}px "${fontFamily}", "Be Vietnam Pro", "Montserrat", "Segoe UI", sans-serif`;
+  ctx.font = `900 ${baseFontSize}px "${fontFamily}", "Be Vietnam Pro", "Inter", "Segoe UI", sans-serif`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
 
@@ -427,10 +440,12 @@ export function drawKaraokeCaptions(ctx, words = [], captionConfig = {}, fontSty
   const wordMetrics = activePhrase.map(w => {
     const rawText = isUppercase ? w.word.toUpperCase() : w.word;
     const isCurrent = currentTime >= w.start && currentTime <= w.end;
+    const emoji = showEmoji ? (w.emoji || getEmojiForWord(w.word)) : null;
     return {
       text: rawText,
       width: ctx.measureText(rawText).width,
-      isCurrent
+      isCurrent,
+      emoji
     };
   });
 
@@ -443,26 +458,79 @@ export function drawKaraokeCaptions(ctx, words = [], captionConfig = {}, fontSty
     const wordCenterX = currX + item.width / 2;
 
     if (item.isCurrent) {
-      // Từ đang phát: phóng to nhẹ 1.08x và đổi màu xanh lá #22c55e nổi bật
-      ctx.translate(wordCenterX, 0);
-      ctx.scale(1.08, 1.08);
-      ctx.translate(-wordCenterX, 0);
+      // 🌟 HIỆU ỨNG TỪ ĐANG PHÁT (ACTIVE WORD)
+      
+      if (effect === 'pill') {
+        // 💊 Hiệu ứng Pill-Box (Alex Hormozi Style): Hộp nền vàng/đỏ bo góc ôm từ
+        const pillPadX = 14 * scale;
+        const pillPadY = 6 * scale;
+        const pillW = item.width + pillPadX * 2;
+        const pillH = baseFontSize * 1.35 + pillPadY * 2;
+        const pillX = currX - pillPadX;
+        const pillY = -pillH / 2;
 
-      // Viền đen dày
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 10;
-      ctx.lineJoin = 'round';
-      ctx.strokeText(item.text, currX, 0);
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+        ctx.shadowBlur = 16;
+        ctx.shadowOffsetY = 4;
+        drawRoundedRect(ctx, pillX, pillY, pillW, pillH, 14);
+        ctx.fillStyle = fontStyle.pillBgColor || '#facc15'; // Nền vàng rực
+        ctx.fill();
+        ctx.restore();
 
-      // Bóng đổ
-      ctx.shadowColor = '#000000';
-      ctx.shadowBlur = 16;
+        // Chữ đen đậm bên trong hộp
+        ctx.fillStyle = fontStyle.pillTextColor || '#000000';
+        ctx.fillText(item.text, currX, 0);
 
-      // Màu chữ nổi (Xanh lá chuẩn Viral)
-      ctx.fillStyle = '#22c55e';
-      ctx.fillText(item.text, currX, 0);
+      } else if (effect === 'glow') {
+        // ✨ Hiệu ứng Cyberpunk Neon Glow: Phát sáng neon đa tầng
+        ctx.translate(wordCenterX, 0);
+        ctx.scale(1.12, 1.12);
+        ctx.translate(-wordCenterX, 0);
+
+        ctx.shadowColor = fontStyle.glowColor || highlightColor || '#00f0ff';
+        ctx.shadowBlur = 24;
+
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 10;
+        ctx.lineJoin = 'round';
+        ctx.strokeText(item.text, currX, 0);
+
+        ctx.fillStyle = highlightColor || '#00f0ff';
+        ctx.fillText(item.text, currX, 0);
+
+      } else {
+        // 💥 Hiệu ứng Word-Pop (MrBeast Style): Phóng to 1.15x kèm viền đen dày và màu xanh lá
+        ctx.translate(wordCenterX, 0);
+        ctx.scale(1.15, 1.15);
+        ctx.translate(-wordCenterX, 0);
+
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 10;
+        ctx.lineJoin = 'round';
+        ctx.strokeText(item.text, currX, 0);
+
+        ctx.shadowColor = '#000000';
+        ctx.shadowBlur = 18;
+
+        ctx.fillStyle = highlightColor || '#22c55e';
+        ctx.fillText(item.text, currX, 0);
+      }
+
+      // 😃 Vẽ Emoji sinh động phía trên từ đang phát nếu có
+      if (item.emoji) {
+        ctx.save();
+        ctx.font = `${Math.round(baseFontSize * 0.95)}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 8;
+        ctx.fillText(item.emoji, wordCenterX, -baseFontSize * 0.65);
+        ctx.restore();
+      }
+
     } else {
-      // Từ xung quanh: Viền đen + chữ trắng
+      // ⚪ TỪ XUNG QUANH (INACTIVE WORDS)
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 8;
       ctx.lineJoin = 'round';
